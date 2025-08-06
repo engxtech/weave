@@ -1,0 +1,26 @@
+ Authentic transcription pipeline failed: Error: Video file does not exist: 727aa1a22902ed2a8c0f1c76f877bc55.mp4
+    at <anonymous> (/home/runner/workspace/server/services/authentic-audio-transcriber.ts:50:16)
+    at new Promise (<anonymous>)
+    at AuthenticAudioTranscriber.extractAudioWithTimestamps (/home/runner/workspace/server/services/authentic-audio-transcriber.ts:43:12)
+    at AuthenticAudioTranscriber.transcribeVideo (/home/runner/workspace/server/services/authentic-audio-transcriber.ts:409:50)
+    at GenerateWaveformCaptionsTool._call (/home/runner/workspace/server/services/agentic-video-editor.ts:422:53)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async GenerateWaveformCaptionsTool.call (file:///home/runner/workspace/node_modules/@langchain/core/dist/tools/index.js:137:22)
+    at async file:///home/runner/workspace/node_modules/langchain/dist/agents/executor.js:481:27
+    at async Promise.all (index 0)
+    at async AgentExecutor._call (file:///home/runner/workspace/node_modules/langchain/dist/agents/executor.js:473:30)
+    at async AgentExecutor.invoke (/home/runner/workspace/node_modules/langchain/dist/chains/base.js:55:28)
+    at async AgenticVideoEditor.processCommand (/home/runner/workspace/server/services/agentic-video-editor.ts:1359:22)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:2943:22)
+Waveform caption generation error: Error: Transcription failed: Video file does not exist: 727aa1a22902ed2a8c0f1c76f877bc55.mp4
+    at AuthenticAudioTranscriber.transcribeVideo (/home/runner/workspace/server/services/authentic-audio-transcriber.ts:436:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async GenerateWaveformCaptionsTool._call (/home/runner/workspace/server/services/agentic-video-editor.ts:422:35)
+    at async GenerateWaveformCaptionsTool.call (file:///home/runner/workspace/node_modules/@langchain/core/dist/tools/index.js:137:22)
+    at async file:///home/runner/workspace/node_modules/langchain/dist/agents/executor.js:481:27
+    at async Promise.all (index 0)
+    at async AgentExecutor._call (file:///home/runner/workspace/node_modules/langchain/dist/agents/executor.js:473:30)
+    at async AgentExecutor.invoke (/home/runner/workspace/node_modules/langchain/dist/chains/base.js:55:28)
+    at async AgenticVideoEditor.processCommand (/home/runner/workspace/server/services/agentic-video-editor.ts:1359:22)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:2943:22)
+[tool/end] [1:chain:AgentExecutor > 9:tool:GenerateWaveformCaptionsTool] [5ms] Exi

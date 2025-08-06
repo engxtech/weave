@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM"],
+    "allowJs": false,
+    "skipLibCheck": false,
+    "esModuleInterop": false,
+    "allowSyntheticDefaultImports": true,
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "module": "ES2022",
+    "moduleResolution": "Node",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "declaration": true,
+    "jsx": "react-jsx",
+    "jsxImportSource": "@revideo/2d/lib",
+    "types": ["vite/client"]
+  },
+  "include": [
+    "./src",
+    "./**/*.ts",
+    "./**/*.tsx"
+  ]
+}

@@ -1,0 +1,414 @@
+/* Animated Subtitle System - Dynamic Visual Effects */
+
+/* Container Animations */
+@keyframes subtitle-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes subtitle-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes subtitle-slide-down {
+  from {
+    opacity: 0;
+    transform: translateY(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes subtitle-expand-in {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes subtitle-flip-in {
+  from {
+    opacity: 0;
+    transform: rotateX(-90deg);
+  }
+  to {
+    opacity: 1;
+    transform: rotateX(0deg);
+  }
+}
+
+/* Exit Animations */
+@keyframes subtitle-fade-out {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes subtitle-slide-down-out {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+}
+
+@keyframes subtitle-contract-out {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+
+/* Word-Level Animations */
+@keyframes word-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes word-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes word-bounce {
+  0% {
+    opacity: 0;
+    transform: translateY(20px) scale(0.9);
+  }
+  50% {
+    opacity: 0.8;
+    transform: translateY(-5px) scale(1.05);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes word-typewriter {
+  from {
+    width: 0;
+    opacity: 0;
+  }
+  to {
+    width: 100%;
+    opacity: 1;
+  }
+}
+
+@keyframes word-glow {
+  0% {
+    text-shadow: 0 0 0 currentColor;
+  }
+  50% {
+    text-shadow: 0 0 10px currentColor, 0 0 20px currentColor;
+  }
+  100% {
+    text-shadow: 0 0 0 currentColor;
+  }
+}
+
+@keyframes word-scale {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes word-highlight {
+  0% {
+    background-color: transparent;
+  }
+  50% {
+    background-color: rgba(251, 191, 36, 0.3);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+/* Container Animation Classes */
+.subtitle-container {
+  position: relative;
+  display: inline-block;
+  padding: 8px 16px;
+  border-radius: 8px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  transition: all 0.3s ease;
+}
+
+.subtitle-container.animate-fade-in {
+  animation: subtitle-fade-in 0.4s ease-out forwards;
+}
+
+.subtitle-container.animate-slide-up {
+  animation: subtitle-slide-up 0.5s ease-out forwards;
+}
+
+.subtitle-container.animate-slide-down {
+  animation: subtitle-slide-down 0.5s ease-out forwards;
+}
+
+.subtitle-container.animate-expand-in {
+  animation: subtitle-expand-in 0.3s ease-out forwards;
+}
+
+.subtitle-container.animate-flip-in {
+  animation: subtitle-flip-in 0.6s ease-out forwards;
+}
+
+/* Exit Animation Classes */
+.subtitle-container.animate-fade-out {
+  animation: subtitle-fade-out 0.4s ease-in forwards;
+}
+
+.subtitle-container.animate-slide-down-out {
+  animation: subtitle-slide-down-out 0.5s ease-in forwards;
+}
+
+.subtitle-container.animate-contract-out {
+  animation: subtitle-contract-out 0.3s ease-in forwards;
+}
+
+/* Word Animation Classes */
+.animated-word {
+  display: inline-block;
+  position: relative;
+  margin-right: 0.2em;
+  transition: all 0.2s ease;
+}
+
+.animated-word.animate-fade-in {
+  animation: word-fade-in 0.3s ease-out forwards;
+  opacity: 0;
+}
+
+.animated-word.animate-slide-up {
+  animation: word-slide-up 0.4s ease-out forwards;
+  opacity: 0;
+}
+
+.animated-word.animate-bounce {
+  animation: word-bounce 0.5s ease-out forwards;
+  opacity: 0;
+}
+
+.animated-word.animate-typewriter {
+  animation: word-typewriter 0.6s ease forwards;
+  overflow: hidden;
+  white-space: nowrap;
+  width: 0;
+  opacity: 0;
+}
+
+.animated-word.animate-glow {
+  animation: word-glow 0.3s ease-in-out forwards;
+}
+
+.animated-word.animate-scale {
+  animation: word-scale 0.2s ease-out forwards;
+}
+
+.animated-word.animate-highlight {
+  animation: word-highlight 0.2s ease-in-out forwards;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+
+/* Speech Speed Visual Indicators */
+.word-speed-fast {
+  color: #ef4444 !important; /* Red for fast speech */
+  font-weight: 600;
+}
+
+.word-speed-normal {
+  color: #10b981 !important; /* Green for normal speech */
+  font-weight: 500;
+}
+
+.word-speed-slow {
+  color: #3b82f6 !important; /* Blue for slow speech */
+  font-weight: 400;
+}
+
+/* Volume Visual Indicators */
+.word-volume-loud {
+  text-shadow: 0 0 5px currentColor;
+  font-size: 1.1em;
+}
+
+.word-volume-quiet {
+  opacity: 0.8;
+  font-size: 0.95em;
+}
+
+/* Emphasis Visual Indicators */
+.word-emphasis-high {
+  font-weight: bold;
+  text-shadow: 0 0 3px currentColor;
+  transform: scale(1.05);
+}
+
+.word-emphasis-medium {
+  font-weight: 600;
+}
+
+.word-emphasis-low {
+  font-weight: 400;
+  opacity: 0.9;
+}
+
+/* Animation Presets */
+.preset-subtle .animated-word {
+  animation-duration: 0.3s;
+  animation-timing-function: ease-out;
+}
+
+.preset-dynamic .animated-word {
+  animation-duration: 0.4s;
+  animation-timing-function: ease-out;
+}
+
+.preset-typewriter .animated-word {
+  animation-duration: 0.6s;
+  animation-timing-function: ease;
+}
+
+.preset-energetic .animated-word {
+  animation-duration: 0.5s;
+  animation-timing-function: ease-out;
+}
+
+/* Hover Effects for Interactive Subtitles */
+.animated-word:hover {
+  transform: scale(1.05);
+  text-shadow: 0 0 8px currentColor;
+  cursor: pointer;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .subtitle-container {
+    padding: 6px 12px;
+    font-size: 0.9em;
+  }
+  
+  .animated-word {
+    margin-right: 0.15em;
+  }
+}
+
+/* Accessibility - Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  .animated-word,
+  .subtitle-container {
+    animation: none !important;
+    transition: none !important;
+  }
+  
+  .animated-word {
+    opacity: 1 !important;
+  }
+}
+
+/* High Contrast Mode */
+@media (prefers-contrast: high) {
+  .word-speed-fast {
+    color: #ff0000 !important;
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+  
+  .word-speed-normal {
+    color: #00ff00 !important;
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+  
+  .word-speed-slow {
+    color: #0000ff !important;
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+}
+
+/* Timeline Integration */
+.timeline-subtitle-preview {
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.timeline-subtitle-preview .animated-word {
+  animation: none;
+  margin-right: 2px;
+}
+
+/* Performance Optimizations */
+.animated-word,
+.subtitle-container {
+  will-change: transform, opacity;
+  transform: translateZ(0); /* Force hardware acceleration */
+}
+
+/* Container Variations */
+.subtitle-container.glass-effect {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.subtitle-container.solid-background {
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: none;
+}
+
+.subtitle-container.gradient-background {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.8), rgba(147, 51, 234, 0.8));
+  backdrop-filter: blur(10px);
+}

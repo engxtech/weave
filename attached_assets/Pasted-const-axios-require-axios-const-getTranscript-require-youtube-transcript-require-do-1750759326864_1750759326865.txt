@@ -1,0 +1,71 @@
+const axios = require("axios");
+const { getTranscript } = require("youtube-transcript");
+require("dotenv").config();
+
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+
+async function fetchTranscript(videoUrl) {
+  try {
+    const videoId = new URL(videoUrl).searchParams.get("v");
+    const transcript = await getTranscript(videoId);
+    return transcript.map(t => t.text).join(" ");
+  } catch (err) {
+    console.error("❌ Error fetching transcript:", err.message);
+    return null;
+  }
+}
+
+async function askGemini(prompt) {
+  try {
+    const response = await axios.post(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.8,
+          topK: 32,
+          topP: 1,
+          maxOutputTokens: 1024,
+          stopSequences: [],
+        },
+        safetySettings: [
+          { category: "HARM_CATEGORY_HARASSMENT", threshold: 2 },
+          { category: "HARM_CATEGORY_HATE_SPEECH", threshold: 2 },
+        ],
+      }
+    );
+    return response.data.candidates[0]?.content?.parts[0]?.text;
+  } catch (err) {
+    console.error("❌ Gemini API error:", err.response?.data || err.message);
+    return null;
+  }
+}
+
+async function run() {
+  const youtubeUrl = "https://www.youtube.com/watch?v=YOUR_VIDEO_ID";
+  const shortStyle = "educational with humor and fast-paced visuals";
+
+  const transcript = await fetchTranscript(youtubeUrl);
+  if (!transcript) return;
+
+  const geminiPrompt = `
+You are a short-form video expert.
+
+Based on the transcript below, create **3 short-form video content ideas** in the style of "${shortStyle}".
+
+For each short, give:
+- Title
+- Hook (1–2 lines)
+- Full Script (under 30 seconds of speech)
+- Ideal duration in seconds
+- Tone and editing style recommendation (text overlays, emojis, etc.)
+
+Transcript:
+${transcript}
+`;
+
+  const result = await askGemini(geminiPrompt);
+  console.log("\n🎬 Generated Shorts:\n", result);
+}
+
+run();

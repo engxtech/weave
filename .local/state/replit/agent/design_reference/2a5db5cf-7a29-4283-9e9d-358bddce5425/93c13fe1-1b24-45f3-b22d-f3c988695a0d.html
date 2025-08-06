@@ -1,0 +1,651 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Video Editor - Workflow Canvas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Roboto:wght@300;400;500;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'google-blue': '#4285F4',
+                        'gemini-green': '#34A853',
+                        'google-bg': '#F8F9FA',
+                        'tile-blue': '#E8F0FE',
+                        'google-text': '#202124',
+                        'google-red': '#EA4335',
+                        'google-yellow': '#FBBC04'
+                    },
+                    fontFamily: {
+                        'google': ['Google Sans', 'sans-serif'],
+                        'roboto': ['Roboto', 'sans-serif'],
+                        'roboto-mono': ['Roboto Mono', 'monospace']
+                    }
+                }
+            }
+        };
+    </script>
+    <style>
+        .workflow-tile {
+            transition: all 0.2s ease;
+        }
+        .workflow-tile:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(66, 133, 244, 0.15);
+        }
+        .connection-line {
+            stroke: #4285F4;
+            stroke-width: 2;
+            fill: none;
+        }
+        .canvas-grid {
+            background-image: 
+                radial-gradient(circle, #E0E0E0 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+        .tile-category {
+            border-left: 3px solid #4285F4;
+        }
+        .chat-message {
+            animation: slideIn 0.3s ease-out;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="bg-google-bg font-roboto">
+    <!-- @COMPONENT: MainApp [main application container] -->
+    <div class="h-screen flex flex-col">
+        <!-- @COMPONENT: TopToolbar [main navigation and controls] -->
+        <header class="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between shadow-sm">
+            <div class="flex items-center space-x-4">
+                <div class="flex items-center space-x-3">
+                    <div class="w-8 h-8 bg-google-blue rounded-lg flex items-center justify-center">
+                        <i class="fas fa-video text-white text-sm"></i>
+                    </div>
+                    <h1 class="text-xl font-google font-medium text-google-text">AI Video Editor</h1>
+                </div>
+                <div class="h-6 w-px bg-gray-300"></div>
+                <div class="flex items-center space-x-2">
+                    <button class="px-3 py-1.5 text-sm bg-tile-blue text-google-blue rounded-lg font-medium hover:bg-blue-100 transition-colors">
+                        <i class="fas fa-file-import mr-2"></i>New Project
+                    </button>
+                    <button class="px-3 py-1.5 text-sm text-gray-600 hover:text-google-text transition-colors">
+                        <i class="fas fa-folder-open mr-2"></i>Open
+                    </button>
+                </div>
+            </div>
+            
+            <div class="flex items-center space-x-4">
+                <div class="flex items-center space-x-2">
+                    <button data-event="click:toggleChat" class="px-4 py-2 bg-gemini-green text-white rounded-lg font-medium hover:bg-green-600 transition-colors">
+                        <i class="fas fa-robot mr-2"></i>AI Assistant
+                    </button>
+                    <button data-event="click:openSettings" class="p-2 text-gray-600 hover:text-google-text transition-colors" title="Settings">
+                        <i class="fas fa-cog"></i>
+                    </button>
+                    <button class="p-2 text-gray-600 hover:text-google-text transition-colors" title="Help">
+                        <i class="fas fa-question-circle"></i>
+                    </button>
+                </div>
+                <div class="h-6 w-px bg-gray-300"></div>
+                <div class="flex items-center space-x-3">
+                    <div class="w-8 h-8 bg-google-blue rounded-full flex items-center justify-center">
+                        <span class="text-white text-sm font-medium">JD</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+        <!-- @END_COMPONENT: TopToolbar -->
+
+        <!-- @COMPONENT: MainWorkspace [main editing interface] -->
+        <div class="flex-1 flex">
+            <!-- @COMPONENT: TileLibrary [draggable tiles sidebar] -->
+            <div class="w-80 bg-white border-r border-gray-200 flex flex-col">
+                <div class="p-4 border-b border-gray-100">
+                    <h2 class="text-lg font-google font-medium text-google-text mb-3">Tile Library</h2>
+                    <div class="relative">
+                        <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm"></i>
+                        <input type="text" placeholder="Search tiles..." class="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-google-blue">
+                    </div>
+                </div>
+                
+                <div class="flex-1 overflow-y-auto p-4 space-y-6">
+                    <!-- Content Processing Category -->
+                    <div>
+                        <div class="tile-category pl-3 py-2 mb-3">
+                            <h3 class="font-google font-medium text-google-text text-sm uppercase tracking-wide">Content Processing</h3>
+                        </div>
+                        <div class="space-y-2">
+                            <div class="workflow-tile bg-tile-blue p-3 rounded-lg cursor-move border border-blue-200" draggable="true">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-8 h-8 bg-google-blue rounded-lg flex items-center justify-center">
+                                        <i class="fas fa-microphone text-white text-sm"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-medium text-google-text text-sm">Voice</h4>
+                                        <p class="text-xs text-gray-600">Change specific spoken words</p>
+                                    </div>
+                                </div>
+                                <div class="mt-3 flex flex-wrap gap-1">
+                                    <span class="px-2 py-1 bg-white text-xs rounded text-google-blue">Cloning</span>
+                                    <span class="px-2 py-1 bg-white text-xs rounded text-google-blue">Translation</span>
+                                </div>
+                            </div>
+
+                            <div class="workflow-tile bg-tile-blue p-3 rounded-lg cursor-move border border-blue-200" draggable="true">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-8 h-8 bg-gemini-green rounded-lg flex items-center justify-center">
+                                        <i class="fas fa-closed-captioning text-white text-sm"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-medium text-google-text text-sm">Captions</h4>
+                                        <p class="text-xs text-gray-600">Auto-generate captions</p>
+                                    </div>
+                                </div>
+                                <div class="mt-3 flex flex-wrap gap-1">
+                                    <span class="px-2 py-1 bg-white text-xs rounded text-gemini-green">Auto-sync</span>
+                                    <span class="px-2 py-1 bg-white text-xs rounded text-gemini-green">Styling</span>
+                                </div>
+                            </div>
+
+                            <div class="workflow-tile bg-tile-blue p-3 rounded-lg cursor-move border border-blue-200" draggable="true">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-8 h-8 bg-google-yellow rounded-lg flex items-center justify-center">
+                                        <i class="fas fa-volume-up text-white text-sm"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-medium text-google-text text-sm">Audio Enhance</h4>
+                                        <p class="text-xs text-gray-600">Improve audio quality</p>
+                                    </div>
+                                </div>
+                                <div class="mt-3 flex flex-wrap gap-1">
+                                    <span class="px-2 py-1 bg-white text-xs rounded text-google-yellow">Noise Reduction</span>
+                                    <span class="px-2 py-1 bg-white text-xs rounded text-google-yellow">Clarity</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Editing Operations Category -->
+                    <div>
+                        <div class="tile-category pl-3 py-2 mb-3">
+                            <h3 class="font-google font-medium text-google-text text-sm uppercase tracking-wide">Editing Operations</h3>
+                        </div>
+                        <div class="space-y-2">
+                            <div class="workflow-tile bg-tile-blue p-3 rounded-lg cursor-move border border-blue-200" draggable="true">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-8 h-8 bg-google-red rounded-lg flex items-center justify-center">
+                                        <i class="fas fa-cut text-white text-sm"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-medium text-google-text text-sm">Cut</h4>
+                                        <p class="text-xs text-gray-600">Trim video content</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="workflow-tile bg-tile-blue p-3 rounded-lg cursor-move border border-blue-200" draggable="true">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-8 h-8 bg-purple-500 rounded-lg flex items-center justify-center">
+                                        <i class="fas fa-film text-white text-sm"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-medium text-google-text text-sm">B-Roll</h4>
+                                        <p class="text-xs text-gray-600">Add supplementary footage</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="workflow-tile bg-tile-blue p-3 rounded-lg cursor-move border border-blue-200" draggable="true">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center">
+                                        <i class="fas fa-music text-white text-sm"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-medium text-google-text text-sm">Music</h4>
+                                        <p class="text-xs text-gray-600">Add background music</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- AI Agents Category -->
+                    <div>
+                        <div class="tile-category pl-3 py-2 mb-3">
+                            <h3 class="font-google font-medium text-google-text text-sm uppercase tracking-wide">AI Agents</h3>
+                        </div>
+                        <div class="space-y-2">
+                            <div class="workflow-tile bg-gradient-to-r from-blue-50 to-purple-50 p-3 rounded-lg cursor-move border border-blue-200" draggable="true">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-8 h-8 bg-gradient-to-r from-google-blue to-purple-500 rounded-lg flex items-center justify-center">
+                                        <i class="fas fa-magic text-white text-sm"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-medium text-google-text text-sm">Curator Agent</h4>
+                                        <p class="text-xs text-gray-600">Transform long-form content</p>
+                                    </div>
+                                </div>
+                                <div class="mt-3 flex flex-wrap gap-1">
+                                    <span class="px-2 py-1 bg-white text-xs rounded text-purple-600">Shorts</span>
+                                    <span class="px-2 py-1 bg-white text-xs rounded text-purple-600">Reframe</span>
+                                </div>
+                            </div>
+
+                            <div class="workflow-tile bg-gradient-to-r from-green-50 to-blue-50 p-3 rounded-lg cursor-move border border-green-200" draggable="true">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-8 h-8 bg-gradient-to-r from-gemini-green to-google-blue rounded-lg flex items-center justify-center">
+                                        <i class="fas fa-language text-white text-sm"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-medium text-google-text text-sm">Linguist Agent</h4>
+                                        <p class="text-xs text-gray-600">Localize content globally</p>
+                                    </div>
+                                </div>
+                                <div class="mt-3 flex flex-wrap gap-1">
+                                    <span class="px-2 py-1 bg-white text-xs rounded text-green-600">Voice</span>
+                                    <span class="px-2 py-1 bg-white text-xs rounded text-green-600">Captions</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- @END_COMPONENT: TileLibrary -->
+
+            <!-- @COMPONENT: CanvasWorkspace [main editing canvas] -->
+            <div class="flex-1 flex flex-col">
+                <!-- Canvas Controls -->
+                <div class="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
+                    <div class="flex items-center space-x-4">
+                        <h2 class="font-google font-medium text-google-text">Workflow Canvas</h2>
+                        <div class="flex items-center space-x-2 text-sm text-gray-600">
+                            <span>Project:</span>
+                            <span class="font-medium text-google-text" data-bind="project.name">Untitled Video</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <button class="p-2 text-gray-600 hover:text-google-text transition-colors" title="Zoom Out">
+                            <i class="fas fa-search-minus"></i>
+                        </button>
+                        <span class="text-sm text-gray-600 min-w-[60px] text-center">100%</span>
+                        <button class="p-2 text-gray-600 hover:text-google-text transition-colors" title="Zoom In">
+                            <i class="fas fa-search-plus"></i>
+                        </button>
+                        <div class="h-6 w-px bg-gray-300 mx-2"></div>
+                        <button class="px-3 py-1.5 bg-gemini-green text-white rounded-lg text-sm font-medium hover:bg-green-600 transition-colors">
+                            <i class="fas fa-play mr-2"></i>Run Workflow
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Main Canvas -->
+                <div class="flex-1 canvas-grid bg-gray-50 relative overflow-hidden">
+                    <svg class="absolute inset-0 w-full h-full pointer-events-none" style="z-index: 1;">
+                        <!-- Connection lines between workflow nodes -->
+                        <path class="connection-line" d="M 150 200 Q 250 200 350 250" data-mock="true"></path>
+                        <path class="connection-line" d="M 450 250 Q 550 250 650 200" data-mock="true"></path>
+                        <path class="connection-line" d="M 150 350 Q 250 350 350 400" data-mock="true"></path>
+                    </svg>
+
+                    <!-- Video Input Node -->
+                    <div class="absolute top-16 left-16 bg-white rounded-lg shadow-lg border border-gray-200 w-72" style="z-index: 2;" data-mock="true">
+                        <div class="p-4 border-b border-gray-100">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-8 h-8 bg-google-blue rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-video text-white text-sm"></i>
+                                </div>
+                                <h3 class="font-medium text-google-text">Video Input</h3>
+                                <div class="ml-auto w-3 h-3 bg-gemini-green rounded-full"></div>
+                            </div>
+                        </div>
+                        <div class="p-4">
+                            <!-- Modern video upload with thumbnail -->
+                            <!-- A professional video call setup with multiple participants in a conference room -->
+                            <img src="https://images.unsplash.com/photo-1582213782179-e0d53f98f2ca?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&h=200" alt="Conference room video call" class="w-full h-32 object-cover rounded-lg mb-3">
+                            <div class="text-sm text-gray-600 mb-2">business_meeting.mp4</div>
+                            <div class="text-xs text-gray-500">Duration: 45:23 • 1920x1080 • 60fps</div>
+                        </div>
+                    </div>
+
+                    <!-- Voice Processing Node -->
+                    <div class="absolute top-32 left-80 bg-white rounded-lg shadow-lg border border-gray-200 w-64" style="z-index: 2;" data-mock="true">
+                        <div class="p-3 border-b border-gray-100">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-6 h-6 bg-google-blue rounded flex items-center justify-center">
+                                    <i class="fas fa-microphone text-white text-xs"></i>
+                                </div>
+                                <h4 class="font-medium text-google-text text-sm">Voice</h4>
+                                <div class="ml-auto w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></div>
+                            </div>
+                        </div>
+                        <div class="p-3 text-xs space-y-2">
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Target Language:</span>
+                                <span class="font-medium text-google-text">Spanish</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Voice Cloning:</span>
+                                <span class="text-gemini-green font-medium">Enabled</span>
+                            </div>
+                            <div class="mt-3 pt-2 border-t border-gray-100">
+                                <div class="text-xs text-gray-500">Status: Processing...</div>
+                                <div class="w-full bg-gray-200 rounded-full h-1.5 mt-1">
+                                    <div class="bg-google-blue h-1.5 rounded-full" style="width: 45%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Captions Node -->
+                    <div class="absolute top-16 right-80 bg-white rounded-lg shadow-lg border border-gray-200 w-64" style="z-index: 2;" data-mock="true">
+                        <div class="p-3 border-b border-gray-100">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-6 h-6 bg-gemini-green rounded flex items-center justify-center">
+                                    <i class="fas fa-closed-captioning text-white text-xs"></i>
+                                </div>
+                                <h4 class="font-medium text-google-text text-sm">Captions</h4>
+                                <div class="ml-auto w-2 h-2 bg-gemini-green rounded-full"></div>
+                            </div>
+                        </div>
+                        <div class="p-3 text-xs space-y-2">
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Style:</span>
+                                <span class="font-medium text-google-text">Modern</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Position:</span>
+                                <span class="font-medium text-google-text">Bottom Center</span>
+                            </div>
+                            <div class="mt-3 pt-2 border-t border-gray-100">
+                                <div class="text-xs text-gemini-green font-medium">Ready</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Audio Enhance Node -->
+                    <div class="absolute top-72 left-80 bg-white rounded-lg shadow-lg border border-gray-200 w-64" style="z-index: 2;" data-mock="true">
+                        <div class="p-3 border-b border-gray-100">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-6 h-6 bg-google-yellow rounded flex items-center justify-center">
+                                    <i class="fas fa-volume-up text-white text-xs"></i>
+                                </div>
+                                <h4 class="font-medium text-google-text text-sm">Audio Enhance</h4>
+                                <div class="ml-auto w-2 h-2 bg-gray-300 rounded-full"></div>
+                            </div>
+                        </div>
+                        <div class="p-3 text-xs space-y-2">
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Noise Reduction:</span>
+                                <span class="font-medium text-google-text">High</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Enhancement:</span>
+                                <span class="font-medium text-google-text">Clarity</span>
+                            </div>
+                            <div class="mt-3 pt-2 border-t border-gray-100">
+                                <div class="text-xs text-gray-500">Ready to process</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Floating Add Node Button -->
+                    <button class="absolute bottom-8 right-8 w-12 h-12 bg-google-blue text-white rounded-full shadow-lg hover:bg-blue-600 transition-colors flex items-center justify-center" style="z-index: 3;" title="Add Node">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+            </div>
+            <!-- @END_COMPONENT: CanvasWorkspace -->
+
+            <!-- @COMPONENT: ChatSidebar [AI assistant interface] -->
+            <div class="w-96 bg-white border-l border-gray-200 flex flex-col" id="chatSidebar">
+                <div class="p-4 border-b border-gray-100">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-8 h-8 bg-gradient-to-r from-google-blue to-gemini-green rounded-lg flex items-center justify-center">
+                                <i class="fas fa-robot text-white text-sm"></i>
+                            </div>
+                            <div>
+                                <h2 class="font-google font-medium text-google-text">Gemini AI Assistant</h2>
+                                <div class="flex items-center space-x-2 text-xs text-gemini-green">
+                                    <div class="w-2 h-2 bg-gemini-green rounded-full"></div>
+                                    <span>Connected</span>
+                                </div>
+                            </div>
+                        </div>
+                        <button class="p-1 text-gray-400 hover:text-gray-600 transition-colors" title="Close">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="flex-1 overflow-y-auto p-4 space-y-4">
+                    <!-- AI Welcome Message -->
+                    <div class="chat-message">
+                        <div class="flex items-start space-x-3">
+                            <div class="w-8 h-8 bg-gradient-to-r from-google-blue to-gemini-green rounded-full flex items-center justify-center flex-shrink-0">
+                                <i class="fas fa-robot text-white text-xs"></i>
+                            </div>
+                            <div class="bg-gray-50 rounded-lg p-3 max-w-xs">
+                                <p class="text-sm text-google-text">Hi! I'm your AI video editing assistant. I can help you build workflows, analyze your content, and make intelligent editing decisions. What would you like to work on today?</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- User Message -->
+                    <div class="chat-message">
+                        <div class="flex items-start space-x-3 justify-end">
+                            <div class="bg-google-blue rounded-lg p-3 max-w-xs">
+                                <p class="text-sm text-white" data-mock="true">Can you help me create a workflow to translate this business meeting video to Spanish with voice cloning?</p>
+                            </div>
+                            <div class="w-8 h-8 bg-google-blue rounded-full flex items-center justify-center flex-shrink-0">
+                                <span class="text-white text-xs font-medium">JD</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- AI Response -->
+                    <div class="chat-message">
+                        <div class="flex items-start space-x-3">
+                            <div class="w-8 h-8 bg-gradient-to-r from-google-blue to-gemini-green rounded-full flex items-center justify-center flex-shrink-0">
+                                <i class="fas fa-robot text-white text-xs"></i>
+                            </div>
+                            <div class="bg-gray-50 rounded-lg p-3 max-w-xs">
+                                <p class="text-sm text-google-text" data-mock="true">Perfect! I've analyzed your video and created a workflow with Voice and Captions tiles. The Voice tile will translate the audio to Spanish using AI voice cloning to preserve the speaker's characteristics. Would you like me to add any additional processing steps?</p>
+                                <div class="mt-3 flex space-x-2">
+                                    <button class="px-3 py-1 bg-google-blue text-white text-xs rounded-md hover:bg-blue-600 transition-colors">Add Audio Enhancement</button>
+                                    <button class="px-3 py-1 bg-gray-200 text-gray-700 text-xs rounded-md hover:bg-gray-300 transition-colors">Configure Settings</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Suggested Actions -->
+                    <div class="bg-tile-blue rounded-lg p-3">
+                        <h4 class="font-medium text-google-text text-sm mb-2">Suggested Actions</h4>
+                        <div class="space-y-2">
+                            <button class="w-full text-left p-2 text-sm bg-white rounded-md hover:bg-gray-50 transition-colors border border-blue-200">
+                                <i class="fas fa-magic text-google-blue mr-2"></i>Auto-detect scene changes
+                            </button>
+                            <button class="w-full text-left p-2 text-sm bg-white rounded-md hover:bg-gray-50 transition-colors border border-blue-200">
+                                <i class="fas fa-eye text-gemini-green mr-2"></i>Improve eye contact
+                            </button>
+                            <button class="w-full text-left p-2 text-sm bg-white rounded-md hover:bg-gray-50 transition-colors border border-blue-200">
+                                <i class="fas fa-crop text-yellow-600 mr-2"></i>Generate vertical format
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="p-4 border-t border-gray-100">
+                    <div class="flex space-x-2">
+                        <input type="text" placeholder="Ask Gemini anything about your video..." class="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-google-blue" data-implementation="Should connect to Gemini API">
+                        <button class="px-4 py-2 bg-google-blue text-white rounded-lg hover:bg-blue-600 transition-colors">
+                            <i class="fas fa-paper-plane text-sm"></i>
+                        </button>
+                    </div>
+                    <div class="mt-2 flex items-center space-x-2 text-xs text-gray-500">
+                        <i class="fas fa-info-circle"></i>
+                        <span>Powered by Gemini Pro Vision</span>
+                    </div>
+                </div>
+            </div>
+            <!-- @END_COMPONENT: ChatSidebar -->
+        </div>
+        <!-- @END_COMPONENT: MainWorkspace -->
+    </div>
+    <!-- @END_COMPONENT: MainApp -->
+
+    <!-- @COMPONENT: SettingsModal [API configuration] -->
+    <div id="settingsModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-lg mx-4">
+            <div class="p-6 border-b border-gray-200">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-xl font-google font-medium text-google-text">Settings</h2>
+                    <button data-event="click:closeSettings" class="p-1 text-gray-400 hover:text-gray-600 transition-colors">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="p-6 space-y-6">
+                <!-- Gemini API Configuration -->
+                <div>
+                    <h3 class="font-google font-medium text-google-text mb-4">Gemini AI Configuration</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-google-text mb-2">API Key</label>
+                            <div class="relative">
+                                <input type="password" placeholder="Enter your Gemini API key..." class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-google-blue pr-10" data-implementation="Should securely store API key">
+                                <button class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
+                                    <i class="fas fa-eye text-sm"></i>
+                                </button>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-1">Your API key is stored securely and never shared</p>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-google-text mb-2">Model Version</label>
+                            <select class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-google-blue">
+                                <option value="gemini-pro">Gemini Pro</option>
+                                <option value="gemini-pro-vision" selected>Gemini Pro Vision</option>
+                                <option value="gemini-ultra">Gemini Ultra (Preview)</option>
+                            </select>
+                        </div>
+
+                        <div class="bg-tile-blue rounded-lg p-4">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-6 h-6 bg-gemini-green rounded-full flex items-center justify-center">
+                                    <i class="fas fa-check text-white text-xs"></i>
+                                </div>
+                                <div>
+                                    <p class="text-sm font-medium text-google-text">Connection Status</p>
+                                    <p class="text-xs text-gray-600">Successfully connected to Gemini API</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Processing Preferences -->
+                <div>
+                    <h3 class="font-google font-medium text-google-text mb-4">Processing Preferences</h3>
+                    <div class="space-y-3">
+                        <label class="flex items-center">
+                            <input type="checkbox" class="rounded border-gray-300 text-google-blue focus:ring-google-blue" checked>
+                            <span class="ml-3 text-sm text-google-text">Enable multimodal analysis</span>
+                        </label>
+                        <label class="flex items-center">
+                            <input type="checkbox" class="rounded border-gray-300 text-google-blue focus:ring-google-blue" checked>
+                            <span class="ml-3 text-sm text-google-text">Auto-save workflow progress</span>
+                        </label>
+                        <label class="flex items-center">
+                            <input type="checkbox" class="rounded border-gray-300 text-google-blue focus:ring-google-blue">
+                            <span class="ml-3 text-sm text-google-text">Send usage analytics</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-6 border-t border-gray-200 flex justify-end space-x-3">
+                <button data-event="click:closeSettings" class="px-4 py-2 text-gray-600 hover:text-google-text transition-colors">Cancel</button>
+                <button class="px-4 py-2 bg-google-blue text-white rounded-lg hover:bg-blue-600 transition-colors">Save Settings</button>
+            </div>
+        </div>
+    </div>
+    <!-- @END_COMPONENT: SettingsModal -->
+
+    <script>
+        (function() {
+            // TODO: Implement business logic, API calls, and state management
+            
+            // Basic UI interactions
+            let chatSidebarVisible = true;
+            let settingsModalVisible = false;
+
+            // Toggle chat sidebar
+            document.addEventListener('click', function(e) {
+                if (e.target.closest('[data-event="click:toggleChat"]')) {
+                    const sidebar = document.getElementById('chatSidebar');
+                    if (chatSidebarVisible) {
+                        sidebar.style.transform = 'translateX(100%)';
+                        chatSidebarVisible = false;
+                    } else {
+                        sidebar.style.transform = 'translateX(0)';
+                        chatSidebarVisible = true;
+                    }
+                }
+            });
+
+            // Open settings modal
+            document.addEventListener('click', function(e) {
+                if (e.target.closest('[data-event="click:openSettings"]')) {
+                    document.getElementById('settingsModal').classList.remove('hidden');
+                    settingsModalVisible = true;
+                }
+            });
+
+            // Close settings modal
+            document.addEventListener('click', function(e) {
+                if (e.target.closest('[data-event="click:closeSettings"]') || 
+                    (e.target.id === 'settingsModal' && settingsModalVisible)) {
+                    document.getElementById('settingsModal').classList.add('hidden');
+                    settingsModalVisible = false;
+                }
+            });
+
+            // Drag and drop simulation
+            document.addEventListener('dragstart', function(e) {
+                if (e.target.classList.contains('workflow-tile')) {
+                    e.dataTransfer.setData('text/plain', e.target.outerHTML);
+                }
+            });
+
+            // Canvas drop simulation
+            document.querySelector('.canvas-grid').addEventListener('dragover', function(e) {
+                e.preventDefault();
+            });
+
+            document.querySelector('.canvas-grid').addEventListener('drop', function(e) {
+                e.preventDefault();
+                // TODO: Implement actual tile placement logic
+                console.log('Tile dropped on canvas');
+            });
+
+            // Simulate workflow execution
+            document.addEventListener('click', function(e) {
+                if (e.target.closest('button') && e.target.textContent.includes('Run Workflow')) {
+                    // TODO: Implement actual workflow execution
+                    alert('Workflow execution simulation - would process video through the connected tiles');
+                }
+            });
+        })();
+    </script>
+</body>
+</html>

@@ -1,0 +1,77 @@
+⚠️ Direct parsing failed, trying extraction...
+❌ All JSON parsing strategies failed: SyntaxError: Expected property name or '}' in JSON at position 1
+    at JSON.parse (<anonymous>)
+    at GeminiVideoTranscriber.transcribeVideo (/home/runner/workspace/server/services/gemini-video-transcriber.ts:153:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async Promise.all (index 0)
+    at async GeminiVideoTranscriber.transcribeVideoWithWaveform (/home/runner/workspace/server/services/gemini-video-transcriber.ts:298:47)
+    at async GenerateWaveformCaptionsTool._call (/home/runner/workspace/server/services/agentic-video-editor.ts:420:34)
+    at async GenerateWaveformCaptionsTool.call (file:///home/runner/workspace/node_modules/@langchain/core/dist/tools/index.js:137:22)
+    at async file:///home/runner/workspace/node_modules/langchain/dist/agents/executor.js:481:27
+    at async Promise.all (index 0)
+    at async AgentExecutor._call (file:///home/runner/workspace/node_modules/langchain/dist/agents/executor.js:473:30)
+    at async AgentExecutor.invoke (/home/runner/workspace/node_modules/langchain/dist/chains/base.js:55:28)
+    at async AgenticVideoEditor.processCommand (/home/runner/workspace/server/services/agentic-video-editor.ts:1355:22)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:2943:22)
+❌ Gemini video transcription failed: Error: Failed to parse JSON from Gemini response: Expected ',' or ']' after array element in JSON at position 3348
+    at GeminiVideoTranscriber.transcribeVideo (/home/runner/workspace/server/services/gemini-video-transcriber.ts:156:21)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async Promise.all (index 0)
+    at async GeminiVideoTranscriber.transcribeVideoWithWaveform (/home/runner/workspace/server/services/gemini-video-transcriber.ts:298:47)
+    at async GenerateWaveformCaptionsTool._call (/home/runner/workspace/server/services/agentic-video-editor.ts:420:34)
+    at async GenerateWaveformCaptionsTool.call (file:///home/runner/workspace/node_modules/@langchain/core/dist/tools/index.js:137:22)
+    at async file:///home/runner/workspace/node_modules/langchain/dist/agents/executor.js:481:27
+    at async Promise.all (index 0)
+    at async AgentExecutor._call (file:///home/runner/workspace/node_modules/langchain/dist/agents/executor.js:473:30)
+    at async AgentExecutor.invoke (/home/runner/workspace/node_modules/langchain/dist/chains/base.js:55:28)
+    at async AgenticVideoEditor.processCommand (/home/runner/workspace/server/services/agentic-video-editor.ts:1355:22)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:2943:22)
+❌ Enhanced transcription failed: Error: Failed to parse JSON from Gemini response: Expected ',' or ']' after array element in JSON at position 3348
+    at GeminiVideoTranscriber.transcribeVideo (/home/runner/workspace/server/services/gemini-video-transcriber.ts:156:21)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async Promise.all (index 0)
+    at async GeminiVideoTranscriber.transcribeVideoWithWaveform (/home/runner/workspace/server/services/gemini-video-transcriber.ts:298:47)
+    at async GenerateWaveformCaptionsTool._call (/home/runner/workspace/server/services/agentic-video-editor.ts:420:34)
+    at async GenerateWaveformCaptionsTool.call (file:///home/runner/workspace/node_modules/@langchain/core/dist/tools/index.js:137:22)
+    at async file:///home/runner/workspace/node_modules/langchain/dist/agents/executor.js:481:27
+    at async Promise.all (index 0)
+    at async AgentExecutor._call (file:///home/runner/workspace/node_modules/langchain/dist/agents/executor.js:473:30)
+    at async AgentExecutor.invoke (/home/runner/workspace/node_modules/langchain/dist/chains/base.js:55:28)
+    at async AgenticVideoEditor.processCommand (/home/runner/workspace/server/services/agentic-video-editor.ts:1355:22)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:2943:22)
+Waveform caption generation error: Error: Failed to create waveform-aligned transcription: Failed to parse JSON from Gemini response: Expected ',' or ']' after array element in JSON at position 3348
+    at GeminiVideoTranscriber.transcribeVideoWithWaveform (/home/runner/workspace/server/services/gemini-video-transcriber.ts:324:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async GenerateWaveformCaptionsTool._call (/home/runner/workspace/server/services/agentic-video-editor.ts:420:34)
+    at async GenerateWaveformCaptionsTool.call (file:///home/runner/workspace/node_modules/@langchain/core/dist/tools/index.js:137:22)
+    at async file:///home/runner/workspace/node_modules/langchain/dist/agents/executor.js:481:27
+    at async Promise.all (index 0)
+    at async AgentExecutor._call (file:///home/runner/workspace/node_modules/langchain/dist/agents/executor.js:473:30)
+    at async AgentExecutor.invoke (/home/runner/workspace/node_modules/langchain/dist/chains/base.js:55:28)
+    at async AgenticVideoEditor.processCommand (/home/runner/workspace/server/services/agentic-video-editor.ts:1355:22)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:2943:22)
+[tool/end] [1:chain:AgentExecutor > 9:tool:GenerateWaveformCaptionsTool] [11.79s] Exiting Tool run with output: "Failed to generate waveform-aligned captions: Failed to create waveform-aligned transcription: Failed to parse JSON from Gemini response: Expected ',' or ']' after array element in JSON at position 3348. Please ensure the video has clear audio content for speech pattern analysis."
+[chain/start] [1:chain:AgentExecutor > 10:chain:ToolCallingAgent] Entering Chain run with input: {
+  "input": "\nCurrent video context:\n- Video path: b4aadc7b55eb91e4ce7fe1353edb49ee.mp4\n- Duration: unknowns\n- Current playback time: 0s\n- Video filename: unknown\n- Existing operations: []\n\nSEGMENT MEMORY:\nNo segments in memory.\n\nUser command: \"Generate waveform visualization\"\n\nIMPORTANT: \n- When creating segments with cut_video_segment, they are automatically numbered and stored in memory\n- When user asks to \"delete segment X\" or \"remove segment X\", use delete_segment tool with the segment number\n- For cut commands like \"cut video from 1 to 10s\", use cut_video_segment with startTime: 1, endTime: 10\n- For people detection like \"add names above people\", use detect_people_and_add_text with currentTime: 0\n- For AI video intelligence (analyze_video_intelligence, find_people_in_video, smart_cut_video), use videoPath: \"b4aadc7b55eb91e4ce7fe1353edb49ee.mp4\"\n- Check segment memory context above to understand which segments exist before processing commands\n- Always return JSON operations for UI updates\n\nPlease analyze this command and use the appropriate tools to fulfill the request with exact parameters.\n",
+  "steps": [
+    {
+      "action": {
+        "tool": "generate_waveform_captions",
+        "toolInput": {},
+        "toolCallId": "6aa49fc6-c267-431a-8a2e-43d8d11dbd5c",
+        "log": "Invoking \"generate_waveform_captions\" with {}\n[{\"functionCall\":{\"name\":\"generate_waveform_captions\",\"args\":{}}}]",
+        "messageLog": [
+          {
+            "lc": 1,
+            "type": "constructor",
+            "id": [
+              "langchain_core",
+              "messages",
+              "AIMessageChunk"
+            ],
+            "kwargs": {
+              "content": [
+                {
+                  "functionCall": {
+                    "name": "generate_waveform_captions",
+                    "args": {}

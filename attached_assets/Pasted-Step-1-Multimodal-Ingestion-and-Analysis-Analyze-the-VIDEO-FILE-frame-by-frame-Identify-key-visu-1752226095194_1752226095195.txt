@@ -1,0 +1,52 @@
+Step 1: Multimodal Ingestion and Analysis
+Analyze the [VIDEO_FILE] frame-by-frame. Identify key visual elements: scenes, objects, faces, actions, and shot changes.
+Analyze the audio track. Transcribe the spoken words to understand the dialogue and narrative. Identify moments of high energy, laughter, or significant tonal shifts in the audio.
+Analyze the [USER_DESCRIPTION] for intent. Extract keywords, sentiment, and the desired tone (e.g., "funny," "inspirational," "action-packed," "educational," "surprising"). This description is your most important guide.
+Step 2: Candidate Segment Identification
+Based on your analysis, scan the entire video timeline and identify all potential "impactful moments" that align with the [USER_DESCRIPTION].
+For each potential segment, generate metadata including:
+start_time (in seconds)
+end_time (in seconds)
+duration (in seconds)
+justification (A brief explanation of why this segment is relevant. E.g., "Matches 'funny moments' keyword due to laughter on audio track and smiling faces," or "Contains high-speed action sequence," or "Directly answers the question posed in the user description.").
+Output this as a conceptual list of candidate clips.
+Step 3: Curation and Narrative Sequencing
+From your list of candidate segments, select the best combination that collectively fits within the [TARGET_DURATION].
+Prioritize quality over quantity. It is better to have a few great clips than many mediocre ones.
+Create a mini-narrative. Arrange the selected clips in a logical sequence that tells a small story or builds to a climax. A good structure is:
+Hook (1-3 seconds): An immediately engaging clip to grab the viewer's attention.
+Buildup (Core Content): Segments that build on the theme from the [USER_DESCRIPTION].
+Payoff/Climax: The most impactful, funny, or surprising moment.
+Ensure the total duration of the selected clips is as close as possible to, but not exceeding, the [TARGET_DURATION].
+Step 4: Execution and Merging
+Precisely trim the selected video segments from the [VIDEO_FILE] using their start_time and end_time.
+Merge these trimmed clips together in the sequence you determined in Step 3.
+Ensure smooth transitions. Apply subtle cross-fades for audio between clips to avoid jarring sound cuts. Maintain the original aspect ratio of the video.
+Constraints & Best Practices:
+Strict Duration: The final video's length must not exceed the [TARGET_DURATION].
+User Intent is King: The [USER_DESCRIPTION] must be the primary driver for all clip selections.
+Maintain Cohesion: The final short should feel like a single, intentionally-edited piece, not a random collection of clips.
+Error Handling: If no relevant segments can be found, or if the source video is shorter than the target duration, inform the user with a clear message.
+Example Usage:
+Inputs:
+[VIDEO_FILE]: my_hawaii_trip_vlog.mp4 (A 15-minute travel vlog)
+[USER_DESCRIPTION]: "Create an exciting, action-packed short. I want to see the best moments from my ziplining and surfing adventures. Make it look thrilling!"
+[TARGET_DURATION]: 25
+Your Thought Process (Internal Monologue):
+Analysis: I've analyzed the 15-minute video. I've transcribed the audio and identified visual scenes. The user wants "action-packed," "ziplining," and "surfing."
+Candidate Identification: I have found 5 potential clips:
+Clip A (02:15 - 02:20): Zipline takeoff, high speed. Justification: "Matches 'ziplining' and 'action-packed'."
+Clip B (02:45 - 02:48): Person laughing on the zipline. Justification: "Shows 'excitement'."
+Clip C (08:10 - 08:16): Paddling out on surfboard. Justification: "Surfing buildup."
+Clip D (08:32 - 08:38): Successfully riding a big wave. Justification: "Peak 'surfing' moment, very 'thrilling'."
+Clip E (08:50 - 08:53): Falling off the surfboard playfully. Justification: "Funny, but maybe not 'thrilling'."
+Curation: The total duration is 25s. Clip D is the best payoff. Clip A is a great hook. I'll combine them to create a narrative.
+Sequence:
+Clip A (5s) - Hook: Zipline takeoff.
+Clip C (6s) - Buildup: Paddling out to surf.
+Clip D (6s) - Climax: Riding the wave.
+Clip B (3s) - Reaction/End: Happy reaction from ziplining.
+Total Duration: 5 + 6 + 6 + 3 = 20 seconds. This is within the 25s limit and tells a great story.
+Execution: I will now trim clips A, C, D, and B from the source video and merge them in that order, ensuring the audio transitions are smooth.
+Final Output:
+A single video file (.mp4), 20 seconds in length, containing the four merged clips.

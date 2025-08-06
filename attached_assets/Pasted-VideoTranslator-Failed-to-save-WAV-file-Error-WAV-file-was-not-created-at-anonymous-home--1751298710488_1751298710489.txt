@@ -1,0 +1,36 @@
+VideoTranslator] Failed to save WAV file: Error: WAV file was not created
+    at <anonymous> (/home/runner/workspace/server/services/video-translator-simple.ts:627:17)
+    at new Promise (<anonymous>)
+    at SimpleVideoTranslator.saveWaveFile (/home/runner/workspace/server/services/video-translator-simple.ts:607:12)
+    at SimpleVideoTranslator.generateTTSAudio (/home/runner/workspace/server/services/video-translator-simple.ts:423:20)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async SimpleVideoTranslator.createDubbedVideo (/home/runner/workspace/server/services/video-translator-simple.ts:285:28)
+    at async AgenticVideoEditor.processCommand (/home/runner/workspace/server/services/agentic-video-editor.ts:943:35)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:2939:22)
+[VideoTranslator] Failed to write audio file: Error: WAV file was not created
+    at <anonymous> (/home/runner/workspace/server/services/video-translator-simple.ts:627:17)
+    at new Promise (<anonymous>)
+    at SimpleVideoTranslator.saveWaveFile (/home/runner/workspace/server/services/video-translator-simple.ts:607:12)
+    at SimpleVideoTranslator.generateTTSAudio (/home/runner/workspace/server/services/video-translator-simple.ts:423:20)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async SimpleVideoTranslator.createDubbedVideo (/home/runner/workspace/server/services/video-translator-simple.ts:285:28)
+    at async AgenticVideoEditor.processCommand (/home/runner/workspace/server/services/agentic-video-editor.ts:943:35)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:2939:22)
+[VideoTranslator] Error generating TTS audio: Error: Failed to save TTS audio: WAV file was not created
+    at SimpleVideoTranslator.generateTTSAudio (/home/runner/workspace/server/services/video-translator-simple.ts:435:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async SimpleVideoTranslator.createDubbedVideo (/home/runner/workspace/server/services/video-translator-simple.ts:285:28)
+    at async AgenticVideoEditor.processCommand (/home/runner/workspace/server/services/agentic-video-editor.ts:943:35)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:2939:22)
+[VideoTranslator] Error creating dubbed video: Error: TTS generation failed: Failed to save TTS audio: WAV file was not created
+    at SimpleVideoTranslator.generateTTSAudio (/home/runner/workspace/server/services/video-translator-simple.ts:440:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async SimpleVideoTranslator.createDubbedVideo (/home/runner/workspace/server/services/video-translator-simple.ts:285:28)
+    at async AgenticVideoEditor.processCommand (/home/runner/workspace/server/services/agentic-video-editor.ts:943:35)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:2939:22)
+❌ Early translation bypass failed: Error: Dubbing failed: TTS generation failed: Failed to save TTS audio: WAV file was not created
+    at SimpleVideoTranslator.createDubbedVideo (/home/runner/workspace/server/services/video-translator-simple.ts:302:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async AgenticVideoEditor.processCommand (/home/runner/workspace/server/services/agentic-video-editor.ts:943:35)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:2939:22)
+[TokenTracker] Video Translation (Failed) usage: {

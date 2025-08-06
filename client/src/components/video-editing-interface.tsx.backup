@@ -1,0 +1,2932 @@
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Slider } from '@/components/ui/slider';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Progress } from '@/components/ui/progress';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { apiRequest } from '@/lib/queryClient';
+import TimelineControls from './timeline-controls';
+import VideoEffectsPanel from './video-effects-panel';
+import { 
+  Upload, 
+  Play, 
+  Pause, 
+  SkipBack, 
+  SkipForward, 
+  Scissors, 
+  Type, 
+  Download, 
+  Trash2, 
+  Plus, 
+  ChevronDown, 
+  ChevronRight,
+  Undo,
+  Delete,
+  X,
+  Crop,
+  RotateCw,
+  Zap,
+  Eye,
+  Settings,
+  Sparkles,
+  Target,
+  Clock
+} from 'lucide-react';
+
+// Types
+interface VideoFile {
+  id: string;
+  filename: string;
+  originalName: string;
+  path: string;
+  size: number;
+  duration?: number;
+  thumbnail?: string;
+}
+
+interface EditOperation {
+  id: string;
+  type: string;
+  timestamp: number;
+  parameters?: any;
+  description: string;
+  segmentNumber?: number;
+}
+
+interface ChatMessage {
+  id: string;
+  type: 'user' | 'assistant';
+  content: string;
+  timestamp: string;
+  operations?: EditOperation[];
+}
+
+interface VideoEditingInterfaceProps {
+  className?: string;
+}
+
+export default function VideoEditingInterface({ className = '' }: VideoEditingInterfaceProps) {
+  // State management
+  const [uploadedVideos, setUploadedVideos] = useState<VideoFile[]>([]);
+  const [selectedVideo, setSelectedVideo] = useState<VideoFile | null>(null);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatInput, setChatInput] = useState('');
+  const [isAgentWarmedUp, setIsAgentWarmedUp] = useState(false);
+  const [agentSessionId] = useState(() => `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
+  const [isWarmingUp, setIsWarmingUp] = useState(false);
+  const [agentAnalysis, setAgentAnalysis] = useState<string>('');
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [editOperations, setEditOperations] = useState<EditOperation[]>([]);
+  const [operationHistory, setOperationHistory] = useState<EditOperation[][]>([]);
+  const [selectedSegments, setSelectedSegments] = useState<Set<string>>(new Set());
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [processedVideoUrl, setProcessedVideoUrl] = useState<string | null>(null);
+  
+  // Enhanced AI features
+  const [aiSuggestions, setAiSuggestions] = useState<any[]>([]);
+  const [showAiSuggestions, setShowAiSuggestions] = useState(false);
+  const [magicModeEnabled, setMagicModeEnabled] = useState(false);
+  const [autoEnhanceEnabled, setAutoEnhanceEnabled] = useState(true);
+  const [smartCutsEnabled, setSmartCutsEnabled] = useState(true);
+  const [showSplitDialog, setShowSplitDialog] = useState(false);
+  const [splitStartTime, setSplitStartTime] = useState(0);
+  const [splitEndTime, setSplitEndTime] = useState(10);
+  const [showExportOptions, setShowExportOptions] = useState(false);
+  const [showReframingPanel, setShowReframingPanel] = useState(false);
+  const [reframingOptions, setReframingOptions] = useState({
+    targetAspectRatio: '9:16' as '9:16' | '16:9' | '1:1' | '4:3',
+    quality: 'medium' as 'high' | 'medium' | 'low',
+    trackingMode: 'auto' as 'auto' | 'person-focus' | 'center-crop' | 'custom',
+    personTracking: {
+      enabled: true,
+      priority: 'primary-speaker' as 'primary-speaker' | 'all-people' | 'movement-based',
+      smoothing: 50,
+      zoomLevel: 1.2
+    },
+    customCrop: null as { x: number; y: number; width: number; height: number } | null,
+    preview: false
+  });
+
+  const [focusPreservationOptions, setFocusPreservationOptions] = useState({
+    preservationMode: 'intelligent-tracking' as 'intelligent-tracking' | 'subject-priority' | 'motion-aware' | 'content-adaptive',
+    smoothingLevel: 5,
+    zoomTolerance: 1.2,
+    quality: 'high' as 'high' | 'medium' | 'low'
+  });
+
+  const [zoomOutOptions, setZoomOutOptions] = useState({
+    maxZoomOut: 2.0,
+    focusGuarantee: 'strict' as 'strict' | 'balanced' | 'flexible',
+    subjectPadding: 10,
+    quality: 'high' as 'high' | 'medium' | 'low'
+  });
+
+  // AI Shorts state
+  const [showAIShortsPanel, setShowAIShortsPanel] = useState(false);
+  const [shortsOptions, setShortsOptions] = useState({
+    contentType: 'viral' as 'viral' | 'educational' | 'entertainment' | 'news' | 'highlights',
+    aspectRatio: '9:16' as '9:16' | '16:9' | '1:1' | '4:3',
+    duration: 60 as 15 | 30 | 60 | 90,
+    focusMode: 'auto' as 'face_core' | 'face_all' | 'face_full' | 'human' | 'pet' | 'car' | 'object' | 'auto',
+    sampleRate: 30 as 15 | 30 | 60,
+    quality: 'high' as 'standard' | 'high' | 'ultra',
+    customTarget: '' as string
+  });
+
+  // Intelligent Cropper State
+  const [cropSettings, setCropSettings] = useState({
+    targetAspectRatio: '9:16' as '9:16' | '16:9' | '1:1',
+    analysisMethod: 'hybrid' as 'composite' | 'gemini' | 'hybrid',
+    segmentDuration: 10
+  });
+  const [cropProgress, setCropProgress] = useState(0);
+  const [cropResult, setCropResult] = useState<any>(null);
+  const [isCropping, setIsCropping] = useState(false);
+  const [cropCurrentStep, setCropCurrentStep] = useState('');
+  const [shortsResult, setShortsResult] = useState<any>(null);
+  const [shortsProgress, setShortsProgress] = useState(0);
+  
+  // Unified Shorts Creator State
+  const [unifiedShortsSettings, setUnifiedShortsSettings] = useState({
+    targetDuration: 30,
+    targetAspectRatio: '9:16' as '9:16' | '16:9' | '1:1',
+    captionStyle: 'viral' as 'viral' | 'educational' | 'professional' | 'entertainment',
+    audioAnalysisEnabled: true,
+    svgCaptionsEnabled: true
+  });
+  const [unifiedShortsResult, setUnifiedShortsResult] = useState<any>(null);
+  const [isCreatingUnifiedShorts, setIsCreatingUnifiedShorts] = useState(false);
+  const [unifiedShortsProgress, setUnifiedShortsProgress] = useState(0);
+  const [unifiedShortsStep, setUnifiedShortsStep] = useState('');
+  const [reframingAnalysis, setReframingAnalysis] = useState<any>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isReframing, setIsReframing] = useState(false);
+  const [reframingProgress, setReframingProgress] = useState(0);
+  const [volume, setVolume] = useState(1);
+  const [selectedRange, setSelectedRange] = useState<{ start: number; end: number } | null>(null);
+  const [videoEffects, setVideoEffects] = useState({
+    brightness: 0,
+    contrast: 0,
+    saturation: 0,
+    blur: 0,
+    sharpen: 0,
+    warmth: 0,
+    vignette: 0,
+    grain: 0,
+    fadeIn: false,
+    fadeOut: false,
+    slowMotion: 1,
+    speedRamp: 1,
+    audioFade: false,
+    audioEcho: 0,
+    audioBass: 0
+  });
+  const [isApplyingEffects, setIsApplyingEffects] = useState(false);
+
+  // Collapsible states
+  const [aiEnhancementOpen, setAiEnhancementOpen] = useState(true);
+  const [stabilizationOpen, setStabilizationOpen] = useState(false);
+  const [smartPacingOpen, setSmartPacingOpen] = useState(false);
+
+  // Enhancement settings
+  const [noiseReduction, setNoiseReduction] = useState(50);
+  const [sharpening, setSharpening] = useState(30);
+  const [stabilizationEnabled, setStabilizationEnabled] = useState(false);
+  const [rhythmDetection, setRhythmDetection] = useState(false);
+
+  // Refs
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const queryClient = useQueryClient();
+
+  // Utility functions
+  const formatTime = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const generateAiSuggestions = useCallback(() => {
+    if (selectedVideo) {
+      generateSuggestionsMutation.mutate();
+    }
+  }, [selectedVideo, editOperations]);
+
+  const applyAiSuggestion = (suggestion: any) => {
+    if (suggestion.type === 'text_overlay') {
+      const operation: EditOperation = {
+        id: Date.now().toString(),
+        type: 'text_overlay',
+        timestamp: suggestion.timestamp,
+        parameters: suggestion.parameters,
+        description: suggestion.description
+      };
+      setEditOperations(prev => [...prev, operation]);
+    } else if (suggestion.type === 'cut_video_segment') {
+      const operation: EditOperation = {
+        id: Date.now().toString(),
+        type: 'cut_video_segment',
+        timestamp: suggestion.timestamp,
+        parameters: suggestion.parameters,
+        description: suggestion.description
+      };
+      setEditOperations(prev => [...prev, operation]);
+    }
+  };
+
+  // Mutations
+  const uploadMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData();
+      formData.append('video', file);
+      
+      const response = await fetch('/api/upload-video', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        throw new Error('Upload failed');
+      }
+      
+      return response.json();
+    },
+    onSuccess: (data) => {
+      const videoFile: VideoFile = {
+        id: data.id,
+        filename: data.filename,
+        originalName: data.originalName,
+        path: data.path,
+        size: data.size,
+        duration: data.duration,
+        thumbnail: data.thumbnail,
+      };
+      
+      setUploadedVideos(prev => [...prev, videoFile]);
+      setSelectedVideo(videoFile);
+      setPreviewUrl(`/api/video/${data.filename}`);
+      setShowAIShortsPanel(true); // Auto-show AI shorts panel after upload
+      
+      const assistantMessage: ChatMessage = {
+        id: Date.now().toString(),
+        type: 'assistant',
+        content: `Video "${data.originalName}" uploaded successfully! I can help you edit it using natural language commands like "cut from 10s to 30s" or "add text overlay at 15s".`,
+        timestamp: new Date().toISOString(),
+      };
+      
+      setChatMessages(prev => [...prev, assistantMessage]);
+    },
+    onError: (error) => {
+      const errorMessage: ChatMessage = {
+        id: Date.now().toString(),
+        type: 'assistant',
+        content: `Upload failed: ${error.message}`,
+        timestamp: new Date().toISOString(),
+      };
+      
+      setChatMessages(prev => [...prev, errorMessage]);
+    },
+  });
+
+  const generateShortsMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedVideo) throw new Error('No video selected');
+      
+      const formData = new FormData();
+      formData.append('videoPath', selectedVideo.path);
+      formData.append('targetAspectRatio', shortsOptions.aspectRatio);
+      formData.append('focusMode', shortsOptions.focusMode);
+      formData.append('detectionType', shortsOptions.focusMode);
+      formData.append('customTarget', shortsOptions.customTarget || '');
+      formData.append('contentType', shortsOptions.contentType);
+      formData.append('duration', shortsOptions.duration.toString());
+      formData.append('quality', shortsOptions.quality);
+      
+      const response = await fetch('/api/complete-autoflip-shorts', {
+        method: 'POST',
+        body: formData
+      });
+      
+      if (!response.ok) throw new Error('AutoFlip shorts generation failed');
+      return response.json();
+    },
+    onSuccess: (result) => {
+      setShortsResult(result);
+      setShortsProgress(0);
+      console.log('AutoFlip shorts generated successfully:', result);
+    },
+    onError: (error) => {
+      setShortsProgress(0);
+      console.error('AutoFlip shorts generation failed:', error);
+    }
+  });
+
+  // Enhanced Unified Shorts Creation Mutation
+  const createUnifiedShortsMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedVideo) throw new Error('No video selected');
+      
+      const formData = new FormData();
+      formData.append('videoPath', selectedVideo.path);
+      formData.append('targetAspectRatio', shortsOptions.aspectRatio);
+      formData.append('detectionType', shortsOptions.focusMode);
+      formData.append('customTarget', shortsOptions.customTarget || '');
+      formData.append('quality', shortsOptions.quality);
+      formData.append('focusMode', shortsOptions.focusMode);
+      
+      const response = await fetch('/api/enhanced-autoflip-shorts', {
+        method: 'POST',
+        body: formData
+      });
+      
+      if (!response.ok) throw new Error('Enhanced AutoFlip shorts creation failed');
+      return response.json();
+    },
+    onSuccess: (result) => {
+      setUnifiedShortsResult(result);
+      setUnifiedShortsProgress(100);
+      setUnifiedShortsStep('Complete!');
+      setIsCreatingUnifiedShorts(false);
+      console.log('Enhanced AutoFlip Shorts created successfully:', result);
+    },
+    onError: (error) => {
+      setUnifiedShortsProgress(0);
+      setUnifiedShortsStep('');
+      setIsCreatingUnifiedShorts(false);
+      console.error('Enhanced AutoFlip Shorts creation failed:', error);
+    }
+  });
+
+  // Intelligent Cropper Functions
+  const handleIntelligentCrop = async () => {
+    if (!selectedVideo) return;
+
+    setIsCropping(true);
+    setCropProgress(0);
+    setCropCurrentStep('Preparing video analysis...');
+
+    try {
+      const formData = new FormData();
+      
+      // Use existing video file
+      formData.append('videoPath', selectedVideo.path);
+      formData.append('targetAspectRatio', cropSettings.targetAspectRatio);
+      formData.append('analysisMethod', cropSettings.analysisMethod);
+      formData.append('segmentDuration', cropSettings.segmentDuration.toString());
+
+      // Simulate progress updates
+      const progressInterval = setInterval(() => {
+        setCropProgress(prev => {
+          if (prev < 90) return prev + 10;
+          return prev;
+        });
+      }, 1000);
+
+      // Update steps
+      setTimeout(() => setCropCurrentStep('Segmenting video into logical scenes...'), 1000);
+      setTimeout(() => setCropCurrentStep('Creating composite frames for action detection...'), 3000);
+      setTimeout(() => setCropCurrentStep('Analyzing movement patterns with AI...'), 5000);
+      setTimeout(() => setCropCurrentStep('Calculating optimal crop coordinates...'), 7000);
+      setTimeout(() => setCropCurrentStep('Processing segments with precision cropping...'), 9000);
+      setTimeout(() => setCropCurrentStep('Stitching final video...'), 11000);
+
+      const response = await fetch('/api/intelligent-crop', {
+        method: 'POST',
+        body: formData,
+      });
+
+      clearInterval(progressInterval);
+      setCropProgress(100);
+      setCropCurrentStep('Intelligent cropping complete!');
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.details || 'Cropping failed');
+      }
+
+      const result = await response.json();
+      setCropResult(result);
+
+      console.log('Intelligent cropping complete:', result);
+
+    } catch (error) {
+      console.error('Intelligent crop error:', error);
+    } finally {
+      setIsCropping(false);
+      setCropProgress(0);
+      setCropCurrentStep('');
+    }
+  };
+
+  const downloadCroppedVideo = () => {
+    if (cropResult?.downloadUrl) {
+      const link = document.createElement('a');
+      link.href = cropResult.downloadUrl;
+      link.download = cropResult.outputPath;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  };
+
+  const getConfidenceColor = (confidence: number) => {
+    if (confidence >= 0.8) return 'bg-green-500';
+    if (confidence >= 0.6) return 'bg-yellow-500';
+    return 'bg-red-500';
+  };
+
+  const getMethodDescription = (method: string) => {
+    switch (method) {
+      case 'composite':
+        return 'Zero-AI composite frame analysis with computer vision blob detection';
+      case 'gemini':
+        return 'AI-powered frame analysis using Gemini Vision API';
+      case 'hybrid':
+        return 'Composite analysis with Gemini fallback for maximum accuracy';
+      default:
+        return method;
+    }
+  };
+
+    // Agent Warmup mutation
+  const agentWarmupMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedVideo) throw new Error('No video selected');
+      
+      const response = await fetch('/api/agent-warmup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          sessionId: agentSessionId,
+          videoPath: selectedVideo.filename,
+          videoMetadata: {
+            originalName: selectedVideo.originalName,
+            duration: duration,
+            uploadTime: new Date().toISOString()
+          }
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      return response.json();
+    },
+    onSuccess: (data) => {
+      setIsAgentWarmedUp(true);
+      setAgentAnalysis(data.analysis);
+      const assistantMessage: ChatMessage = {
+        id: Date.now().toString(),
+        type: 'assistant',
+        content: `Agent warmed up successfully! I've analyzed your video "${selectedVideo?.originalName}" and I'm ready to help you edit it. You can ask me to navigate to specific timestamps, analyze content, or perform editing operations.`,
+        timestamp: new Date().toISOString(),
+        operations: []
+      };
+      setChatMessages(prev => [...prev, assistantMessage]);
+    },
+    onError: (error) => {
+      console.error('Warmup error:', error);
+      const errorMessage: ChatMessage = {
+        id: Date.now().toString(),
+        type: 'assistant',
+        content: 'Failed to warm up the agent. Please try again.',
+        timestamp: new Date().toISOString(),
+        operations: []
+      };
+      setChatMessages(prev => [...prev, errorMessage]);
+    }
+  });
+
+  // LangChain Chat mutation
+  const langchainChatMutation = useMutation({
+    mutationFn: async (message: string) => {
+      const response = await fetch('/api/langchain-chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          sessionId: agentSessionId,
+          message
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      return response.json();
+    },
+    onSuccess: (data) => {
+      const assistantMessage: ChatMessage = {
+        id: Date.now().toString(),
+        type: 'assistant',
+        content: data.response,
+        timestamp: new Date().toISOString(),
+        operations: []
+      };
+      setChatMessages(prev => [...prev, assistantMessage]);
+
+      // Handle navigation actions
+      if (data.actions && Array.isArray(data.actions)) {
+        data.actions.forEach((action: any) => {
+          if (action.type === 'navigation') {
+            handleNavigationAction(action);
+          }
+        });
+      }
+    },
+    onError: (error) => {
+      console.error('LangChain chat error:', error);
+      const errorMessage: ChatMessage = {
+        id: Date.now().toString(),
+        type: 'assistant',
+        content: 'Sorry, I encountered an error processing your request.',
+        timestamp: new Date().toISOString(),
+        operations: []
+      };
+      setChatMessages(prev => [...prev, errorMessage]);
+    }
+  });
+
+const agenticChatMutation = useMutation({
+    mutationFn: async (message: string) => {
+      const response = await apiRequest('/api/agentic-chat', {
+        method: 'POST',
+        body: {
+          message,
+          videoContext: selectedVideo ? {
+            filename: selectedVideo.filename,
+            duration: duration,
+            currentOperations: editOperations,
+          } : null,
+        },
+      });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      const assistantMessage: ChatMessage = {
+        id: Date.now().toString(),
+        type: 'assistant',
+        content: data.response,
+        timestamp: new Date().toISOString(),
+        operations: data.operations || [],
+      };
+      
+      setChatMessages(prev => [...prev, assistantMessage]);
+      
+      if (data.operations && data.operations.length > 0) {
+        setOperationHistory(prev => [...prev, editOperations]);
+        setEditOperations(prev => [...prev, ...data.operations]);
+        
+        // Auto-generate suggestions for next steps if magic mode is enabled
+        if (magicModeEnabled) {
+          generateAiSuggestions();
+        }
+
+        // Auto-scroll to bottom of chat
+        setTimeout(() => {
+          const chatContainer = document.querySelector('.overflow-y-auto');
+          if (chatContainer) {
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+          }
+        }, 100);
+      }
+    },
+  });
+
+  // New AI Suggestions Mutation
+  const generateSuggestionsMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedVideo) throw new Error('No video selected');
+      
+      const response = await apiRequest('/api/analyze-video-suggestions', {
+        method: 'POST',
+        body: {
+          videoPath: selectedVideo.path,
+          currentOperations: editOperations,
+          enhancementSettings: { autoEnhanceEnabled, smartCutsEnabled }
+        },
+      });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      setAiSuggestions(data.suggestions || []);
+      setShowAiSuggestions(true);
+    },
+  });
+
+  const exportMutation = useMutation({
+    mutationFn: async (options: { quality: string; format: string }) => {
+      const response = await apiRequest('/api/export-video', {
+        method: 'POST',
+        body: {
+          videoPath: selectedVideo?.path,
+          operations: editOperations,
+          ...options,
+        },
+      });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      const link = document.createElement('a');
+      link.href = data.downloadUrl;
+      link.download = data.filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    },
+  });
+
+  const analyzeVideoMutation = useMutation({
+    mutationFn: async (videoPath: string) => {
+      const response = await apiRequest('/api/analyze-for-reframing', {
+        method: 'POST',
+        body: { videoPath },
+      });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      setReframingAnalysis(data);
+      setIsAnalyzing(false);
+    },
+    onError: () => {
+      setIsAnalyzing(false);
+    },
+  });
+
+  const reframeMutation = useMutation({
+    mutationFn: async (options: any) => {
+      console.log('Starting reframe mutation with:', { videoPath: selectedVideo?.path, options });
+      const response = await fetch('/api/smart-reframe', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          videoPath: selectedVideo?.path,
+          options,
+        }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Smart reframing failed');
+      }
+      
+      return response.json();
+    },
+    onSuccess: (data) => {
+      console.log('Reframe success:', data);
+      setProcessedVideoUrl(data.downloadUrl);
+      setIsReframing(false);
+      setReframingProgress(100);
+      
+      const assistantMessage: ChatMessage = {
+        id: Date.now().toString(),
+        type: 'assistant',
+        content: `Video successfully reframed to ${reframingOptions.targetAspectRatio} aspect ratio! The AI detected subjects and applied smart cropping for optimal composition.`,
+        timestamp: new Date().toISOString(),
+      };
+      
+      setChatMessages(prev => [...prev, assistantMessage]);
+      
+      // Reset progress after 2 seconds
+      setTimeout(() => setReframingProgress(0), 2000);
+    },
+    onError: (error) => {
+      console.error('Reframe error:', error);
+      setIsReframing(false);
+      setReframingProgress(0);
+      
+      const errorMessage: ChatMessage = {
+        id: Date.now().toString(),
+        type: 'assistant',
+        content: `Smart reframing failed: ${error.message}`,
+        timestamp: new Date().toISOString(),
+      };
+      
+      setChatMessages(prev => [...prev, errorMessage]);
+    },
+  });
+
+  // Event handlers
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      uploadMutation.mutate(file);
+    }
+  };
+
+  const handleCreateUnifiedShorts = () => {
+    if (!selectedVideo) return;
+    setIsCreatingUnifiedShorts(true);
+    setUnifiedShortsProgress(10);
+    setUnifiedShortsStep('Initializing unified shorts creation...');
+    createUnifiedShortsMutation.mutate();
+  };
+
+  // Handle navigation actions from LangChain agent
+  const handleNavigationAction = (action: any) => {
+    if (!videoRef.current) return;
+
+    switch (action.action) {
+      case 'seek':
+        if (typeof action.timestamp === 'number') {
+          videoRef.current.currentTime = action.timestamp;
+          setCurrentTime(action.timestamp);
+          // Auto-play after seeking
+          videoRef.current.play().catch(console.error);
+          setIsPlaying(true);
+        }
+        break;
+      case 'play':
+        videoRef.current.play().catch(console.error);
+        setIsPlaying(true);
+        break;
+      case 'pause':
+        videoRef.current.pause();
+        setIsPlaying(false);
+        break;
+    }
+  };
+
+  const handleAgentWarmup = () => {
+    if (!selectedVideo) return;
+    setIsWarmingUp(true);
+    agentWarmupMutation.mutate();
+    setIsWarmingUp(false);
+  };
+
+  const handleChatSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!chatInput.trim()) return;
+
+    const userMessage: ChatMessage = {
+      id: Date.now().toString(),
+      type: 'user',
+      content: chatInput,
+      timestamp: new Date().toISOString(),
+    };
+
+    setChatMessages(prev => [...prev, userMessage]);
+    
+    // Use LangChain agent if warmed up, otherwise fallback to legacy agent
+    if (isAgentWarmedUp) {
+      langchainChatMutation.mutate(chatInput);
+    } else {
+      agenticChatMutation.mutate(chatInput);
+    }
+    
+    setChatInput('');
+  };
+
+  const handleUndo = () => {
+    if (operationHistory.length > 0) {
+      const previousState = operationHistory[operationHistory.length - 1];
+      setEditOperations(previousState);
+      setOperationHistory(prev => prev.slice(0, -1));
+    }
+  };
+
+  const handleDeleteSelected = () => {
+    const cutOperations = editOperations.filter(op => op.type === 'cut_video_segment');
+    const selectedOps = cutOperations.filter(op => selectedSegments.has(op.id));
+    
+    if (selectedOps.length > 0) {
+      setOperationHistory(prev => [...prev, editOperations]);
+      
+      const deleteOperations = selectedOps.map(op => ({
+        id: `delete_${Date.now()}_${Math.random()}`,
+        type: 'delete_segment',
+        timestamp: Date.now(),
+        parameters: {
+          segmentId: op.id,
+          startTime: op.parameters?.startTime || 0,
+          endTime: op.parameters?.endTime || 10,
+        },
+        description: `Delete segment ${op.segmentNumber || 'Unknown'}`,
+      }));
+      
+      setEditOperations(prev => [...prev, ...deleteOperations]);
+      setSelectedSegments(new Set());
+    }
+  };
+
+  const handleSegmentClick = (operationId: string) => {
+    setSelectedSegments(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(operationId)) {
+        newSet.delete(operationId);
+      } else {
+        newSet.add(operationId);
+      }
+      return newSet;
+    });
+  };
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key === 'z') {
+        event.preventDefault();
+        handleUndo();
+      }
+      if (event.key === 'Delete' || event.key === 'Backspace') {
+        if (selectedSegments.size > 0) {
+          event.preventDefault();
+          handleDeleteSelected();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [operationHistory, selectedSegments, editOperations]);
+
+  // Auto-processing effect
+  useEffect(() => {
+    if (selectedVideo && editOperations.length > 0) {
+      const processVideo = async () => {
+        try {
+          const response = await fetch('/api/process-video', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              videoPath: selectedVideo.path,
+              operations: editOperations,
+            }),
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            setProcessedVideoUrl(data.processedVideoUrl);
+          }
+        } catch (error) {
+          console.error('Auto-processing failed:', error);
+        }
+      };
+
+      const timeoutId = setTimeout(processVideo, 500);
+      return () => clearTimeout(timeoutId);
+    } else {
+      setProcessedVideoUrl(null);
+    }
+  }, [selectedVideo, editOperations]);
+
+  const handleVideoLoadedMetadata = () => {
+    if (videoRef.current) {
+      setDuration(videoRef.current.duration);
+    }
+  };
+
+  const handleTimeUpdate = () => {
+    if (videoRef.current) {
+      setCurrentTime(videoRef.current.currentTime);
+    }
+  };
+
+  const handleLoadedMetadata = () => {
+    if (videoRef.current) {
+      setDuration(videoRef.current.duration);
+    }
+  };
+
+  const handleAnalyzeVideo = () => {
+    if (selectedVideo) {
+      setIsAnalyzing(true);
+      analyzeVideoMutation.mutate(selectedVideo.path);
+    }
+  };
+
+  const handleZoomOutFocusConvert = async () => {
+    if (!selectedVideo) {
+      console.error('No video selected');
+      return;
+    }
+
+    setIsReframing(true);
+    setReframingProgress(0);
+
+    try {
+      // Simulate progress updates
+      const progressInterval = setInterval(() => {
+        setReframingProgress(prev => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return 90;
+          }
+          return prev + 8;
+        });
+      }, 1000);
+
+      // Get video blob
+      const videoBlob = await fetch(selectedVideo.path).then(r => r.blob());
+      
+      const formData = new FormData();
+      formData.append('video', videoBlob, selectedVideo.filename);
+      formData.append('targetAspectRatio', reframingOptions.targetAspectRatio);
+      formData.append('maxZoomOut', zoomOutOptions.maxZoomOut.toString());
+      formData.append('focusGuarantee', zoomOutOptions.focusGuarantee);
+      formData.append('subjectPadding', zoomOutOptions.subjectPadding.toString());
+      formData.append('quality', zoomOutOptions.quality);
+
+      const response = await fetch('/api/zoom-out-focus-convert', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const result = await response.json();
+      clearInterval(progressInterval);
+      setReframingProgress(100);
+
+      if (result.success) {
+        // Update video list with new zoom-out focus video
+        const newVideo: VideoFile = {
+          id: `zoom_focus_${Date.now()}`,
+          filename: `zoom_focus_${selectedVideo.filename}`,
+          originalName: `Zoom Focus - ${selectedVideo.originalName}`,
+          path: result.videoUrl,
+          type: 'video/mp4',
+          size: 0,
+          uploadedAt: new Date().toISOString()
+        };
+
+        setVideoFiles(prev => [...prev, newVideo]);
+        setSelectedVideo(newVideo);
+        
+        setFeedback({
+          type: 'success',
+          message: `Focus guaranteed! Zoom: ${result.zoomFactor.toFixed(1)}x, ${result.subjectsInFrame}/${result.totalSubjectsDetected} subjects preserved (${result.focusPreservationScore}%)`
+        });
+      } else {
+        setFeedback({
+          type: 'error',
+          message: result.error || 'Zoom-out focus conversion failed'
+        });
+      }
+    } catch (error) {
+      console.error('Zoom-out focus conversion error:', error);
+      setFeedback({
+        type: 'error',
+        message: 'Zoom-out focus conversion failed'
+      });
+    } finally {
+      setIsReframing(false);
+      setReframingProgress(0);
+    }
+  };
+
+  const handleFocusPreservingConvert = async () => {
+    if (!selectedVideo) {
+      console.error('No video selected');
+      return;
+    }
+
+    setIsReframing(true);
+    setReframingProgress(0);
+
+    try {
+      // Simulate progress updates
+      const progressInterval = setInterval(() => {
+        setReframingProgress(prev => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return 90;
+          }
+          return prev + 10;
+        });
+      }, 1000);
+
+      // Get video blob
+      const videoBlob = await fetch(selectedVideo.path).then(r => r.blob());
+      
+      const formData = new FormData();
+      formData.append('video', videoBlob, selectedVideo.filename);
+      formData.append('targetAspectRatio', reframingOptions.targetAspectRatio);
+      formData.append('preservationMode', focusPreservationOptions.preservationMode);
+      formData.append('quality', focusPreservationOptions.quality);
+      formData.append('smoothingLevel', focusPreservationOptions.smoothingLevel.toString());
+      formData.append('zoomTolerance', focusPreservationOptions.zoomTolerance.toString());
+
+      const response = await fetch('/api/focus-preserving-convert', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const result = await response.json();
+      clearInterval(progressInterval);
+      setReframingProgress(100);
+
+      if (result.success) {
+        // Update video list with new focus-preserved video
+        const newVideo: VideoFile = {
+          id: `focus_${Date.now()}`,
+          filename: `focus_preserved_${selectedVideo.filename}`,
+          originalName: `Focus Preserved - ${selectedVideo.originalName}`,
+          path: result.videoUrl,
+          type: 'video/mp4',
+          size: 0,
+          uploadedAt: new Date().toISOString()
+        };
+
+        setVideoFiles(prev => [...prev, newVideo]);
+        setSelectedVideo(newVideo);
+        
+        setFeedback({
+          type: 'success',
+          message: `Focus preserved successfully! Score: ${result.focusPreservationScore}% (${result.adaptedFocusPoints} focus points)`
+        });
+      } else {
+        setFeedback({
+          type: 'error',
+          message: result.error || 'Focus preservation failed'
+        });
+      }
+    } catch (error) {
+      console.error('Focus preservation error:', error);
+      setFeedback({
+        type: 'error',
+        message: 'Focus preservation failed'
+      });
+    } finally {
+      setIsReframing(false);
+      setReframingProgress(0);
+    }
+  };
+
+  const handleSmartReframe = () => {
+    console.log('Smart reframe clicked', { selectedVideo: selectedVideo?.filename, reframingOptions });
+    
+    if (!selectedVideo) {
+      console.error('No video selected');
+      return;
+    }
+    
+    setIsReframing(true);
+    setReframingProgress(0);
+    
+    // Simulate progress updates
+    const progressInterval = setInterval(() => {
+      setReframingProgress(prev => {
+        if (prev >= 90) {
+          clearInterval(progressInterval);
+          return 90; // Let the mutation complete to reach 100%
+        }
+        return prev + 10;
+      });
+    }, 500);
+    
+    // Call the mutation with the video path
+    reframeMutation.mutate({
+      ...reframingOptions,
+      videoPath: selectedVideo.path
+    });
+  };
+
+  const handlePlayPause = () => {
+    if (videoRef.current) {
+      if (isPlaying) {
+        videoRef.current.pause();
+      } else {
+        videoRef.current.play();
+      }
+      setIsPlaying(!isPlaying);
+    }
+  };
+
+  const handleSeek = (time: number) => {
+    if (videoRef.current) {
+      videoRef.current.currentTime = time;
+      setCurrentTime(time);
+    }
+  };
+
+  const handleVolumeChange = (newVolume: number) => {
+    setVolume(newVolume);
+    if (videoRef.current) {
+      videoRef.current.volume = newVolume;
+    }
+  };
+
+  const handleSplit = (time: number) => {
+    const splitOperation: EditOperation = {
+      id: `split_${Date.now()}`,
+      type: 'split_video',
+      timestamp: Date.now(),
+      parameters: { time },
+      description: `Split at ${formatTime(time)}`
+    };
+    
+    setOperationHistory(prev => [...prev, editOperations]);
+    setEditOperations(prev => [...prev, splitOperation]);
+  };
+
+  const handleCut = (startTime: number, endTime: number) => {
+    const cutOperation: EditOperation = {
+      id: `cut_${Date.now()}`,
+      type: 'cut_video_segment',
+      timestamp: Date.now(),
+      parameters: { startTime, endTime },
+      description: `Cut ${formatTime(startTime)} - ${formatTime(endTime)}`,
+      segmentNumber: editOperations.filter(op => op.type === 'cut_video_segment').length + 1
+    };
+    
+    setOperationHistory(prev => [...prev, editOperations]);
+    setEditOperations(prev => [...prev, cutOperation]);
+    setSelectedRange(null);
+  };
+
+  const handleRangeSelect = (start: number, end: number) => {
+    setSelectedRange({ start, end });
+  };
+
+  const handleApplyEffect = (effectType: string, intensity: number) => {
+    setIsApplyingEffects(true);
+    
+    const effectOperation: EditOperation = {
+      id: `effect_${Date.now()}`,
+      type: 'apply_effects',
+      timestamp: Date.now(),
+      parameters: { effects: videoEffects, effectType, intensity },
+      description: `Apply ${effectType} effects`
+    };
+    
+    setOperationHistory(prev => [...prev, editOperations]);
+    setEditOperations(prev => [...prev, effectOperation]);
+    
+    // Simulate processing time
+    setTimeout(() => {
+      setIsApplyingEffects(false);
+    }, 2000);
+  };
+
+  // Simulate AI shorts progress
+  useEffect(() => {
+    if (generateShortsMutation.isPending) {
+      const interval = setInterval(() => {
+        setShortsProgress(prev => {
+          if (prev >= 95) return prev;
+          const increment = Math.random() * 5 + 2;
+          return Math.min(95, prev + increment);
+        });
+      }, 500);
+      
+      return () => clearInterval(interval);
+    }
+  }, [generateShortsMutation.isPending]);
+
+  return (
+    <div className={`h-full bg-gray-50 ${className}`}>
+      {/* Top Toolbar */}
+      <div className="h-12 bg-white border-b border-gray-200 flex items-center px-4 shadow-sm">
+        <div className="flex items-center space-x-4">
+          <span className="text-gray-900 text-sm font-semibold">AI Video Editor</span>
+        </div>
+        <div className="flex-1 flex justify-center">
+          <div className="flex items-center space-x-1">
+            <Button variant="ghost" size="sm" className="text-gray-600 hover:text-gray-900 hover:bg-gray-100">
+              <Play className="w-4 h-4" />
+            </Button>
+            <Button variant="ghost" size="sm" className="text-gray-600 hover:text-gray-900 hover:bg-gray-100">
+              <Pause className="w-4 h-4" />
+            </Button>
+            <Button variant="ghost" size="sm" className="text-gray-600 hover:text-gray-900 hover:bg-gray-100">
+              <SkipBack className="w-4 h-4" />
+            </Button>
+            <Button variant="ghost" size="sm" className="text-gray-600 hover:text-gray-900 hover:bg-gray-100">
+              <SkipForward className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+        <div className="flex items-center space-x-2">
+          <span className="text-gray-600 text-xs">{formatTime(currentTime)} / {formatTime(duration)}</span>
+        </div>
+      </div>
+
+      <div className="flex h-[calc(100%-48px)]">
+        {/* Left Panel - AI Enhancement & Controls */}
+        <div className="w-80 bg-white border-r border-gray-200 flex flex-col shadow-sm">
+          <div className="flex-1 overflow-y-auto">
+            {/* AI Magic Mode Section */}
+            <div className="p-4 bg-gradient-to-r from-purple-50 to-blue-50 border-b border-gray-200">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center space-x-2">
+                  <Sparkles className="w-5 h-5 text-purple-600" />
+                  <span className="font-medium text-gray-900">AI Magic Mode</span>
+                </div>
+                <Switch
+                  checked={magicModeEnabled}
+                  onCheckedChange={setMagicModeEnabled}
+                />
+              </div>
+              <p className="text-xs text-gray-600 mb-3">
+                Automatically suggests improvements and smart edits as you work
+              </p>
+              <div className="flex space-x-2">
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  onClick={generateAiSuggestions}
+                  disabled={!selectedVideo || generateSuggestionsMutation.isPending}
+                  className="flex-1"
+                >
+                  <Target className="w-4 h-4 mr-1" />
+                  {generateSuggestionsMutation.isPending ? 'Analyzing...' : 'Get AI Suggestions'}
+                </Button>
+              </div>
+            </div>
+
+            {/* AI Enhancement Section */}
+            <Collapsible open={aiEnhancementOpen} onOpenChange={setAiEnhancementOpen}>
+              <CollapsibleTrigger className="flex items-center justify-between w-full p-4 hover:bg-gray-50">
+                <span className="font-medium text-gray-900">AI Enhancement</span>
+                {aiEnhancementOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+              </CollapsibleTrigger>
+              <CollapsibleContent className="px-4 pb-4">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-medium text-gray-700">Auto Enhance</Label>
+                    <Switch
+                      checked={autoEnhanceEnabled}
+                      onCheckedChange={setAutoEnhanceEnabled}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-medium text-gray-700">Smart Cuts</Label>
+                    <Switch
+                      checked={smartCutsEnabled}
+                      onCheckedChange={setSmartCutsEnabled}
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-gray-700">Noise Reduction</Label>
+                    <Slider
+                      value={[noiseReduction]}
+                      onValueChange={(value) => setNoiseReduction(value[0])}
+                      max={100}
+                      step={1}
+                      className="mt-2"
+                    />
+                    <span className="text-xs text-gray-500">{noiseReduction}%</span>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-gray-700">Sharpening</Label>
+                    <Slider
+                      value={[sharpening]}
+                      onValueChange={(value) => setSharpening(value[0])}
+                      max={100}
+                      step={1}
+                      className="mt-2"
+                    />
+                    <span className="text-xs text-gray-500">{sharpening}%</span>
+                  </div>
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+
+            {/* Stabilization Section */}
+            <Collapsible open={stabilizationOpen} onOpenChange={setStabilizationOpen}>
+              <CollapsibleTrigger className="flex items-center justify-between w-full p-4 hover:bg-gray-50 border-t border-gray-100">
+                <span className="font-medium text-gray-900">Stabilization</span>
+                {stabilizationOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+              </CollapsibleTrigger>
+              <CollapsibleContent className="px-4 pb-4">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-medium text-gray-700">Enable Stabilization</Label>
+                  <Switch
+                    checked={stabilizationEnabled}
+                    onCheckedChange={setStabilizationEnabled}
+                  />
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+
+            {/* Smart Pacing Section */}
+            <Collapsible open={smartPacingOpen} onOpenChange={setSmartPacingOpen}>
+              <CollapsibleTrigger className="flex items-center justify-between w-full p-4 hover:bg-gray-50 border-t border-gray-100">
+                <span className="font-medium text-gray-900">Smart Pacing</span>
+                {smartPacingOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+              </CollapsibleTrigger>
+              <CollapsibleContent className="px-4 pb-4">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-medium text-gray-700">Rhythm Detection</Label>
+                  <Switch
+                    checked={rhythmDetection}
+                    onCheckedChange={setRhythmDetection}
+                  />
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+
+            {/* Smart Reframing Section */}
+            <div className="border-t border-gray-100">
+              <div className="p-4">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-medium text-gray-900">Smart Reframing</h3>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setShowReframingPanel(!showReframingPanel)}
+                  >
+                    <Crop className="w-4 h-4" />
+                  </Button>
+                </div>
+                
+                {showReframingPanel && selectedVideo && (
+                  <div className="space-y-4">
+                    {/* Aspect Ratio Selection */}
+                    <div>
+                      <Label className="text-sm font-medium text-gray-700 mb-2 block">Target Aspect Ratio</Label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {[
+                          { value: '9:16', label: 'Portrait (9:16)' },
+                          { value: '16:9', label: 'Landscape (16:9)' },
+                          { value: '1:1', label: 'Square (1:1)' },
+                          { value: '4:3', label: 'Classic (4:3)' }
+                        ].map((ratio) => (
+                          <Button
+                            key={ratio.value}
+                            size="sm"
+                            variant={reframingOptions.targetAspectRatio === ratio.value ? 'default' : 'outline'}
+                            onClick={() => setReframingOptions(prev => ({ ...prev, targetAspectRatio: ratio.value as any }))}
+                            className="text-xs"
+                          >
+                            {ratio.label}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Tracking Mode Selection */}
+                    <div>
+                      <Label className="text-sm font-medium text-gray-700 mb-2 block">Tracking Mode</Label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {[
+                          { value: 'auto', label: 'Auto' },
+                          { value: 'person-focus', label: 'Person Focus' },
+                          { value: 'center-crop', label: 'Center Crop' },
+                          { value: 'custom', label: 'Custom' }
+                        ].map((mode) => (
+                          <Button
+                            key={mode.value}
+                            size="sm"
+                            variant={reframingOptions.trackingMode === mode.value ? 'default' : 'outline'}
+                            onClick={() => setReframingOptions(prev => ({ ...prev, trackingMode: mode.value as any }))}
+                            className="text-xs"
+                          >
+                            {mode.label}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Person Tracking Settings */}
+                    {(reframingOptions.trackingMode === 'auto' || reframingOptions.trackingMode === 'person-focus') && (
+                      <div className="space-y-3 p-3 bg-blue-50 rounded-lg">
+                        <Label className="text-sm font-medium text-blue-900">Person Tracking Settings</Label>
+                        
+                        <div>
+                          <Label className="text-xs text-blue-800 mb-1 block">Priority</Label>
+                          <div className="grid grid-cols-1 gap-1">
+                            {[
+                              { value: 'primary-speaker', label: 'Main Speaker' },
+                              { value: 'all-people', label: 'All People' },
+                              { value: 'movement-based', label: 'Most Active' }
+                            ].map((priority) => (
+                              <Button
+                                key={priority.value}
+                                size="sm"
+                                variant={reframingOptions.personTracking.priority === priority.value ? 'default' : 'outline'}
+                                onClick={() => setReframingOptions(prev => ({ 
+                                  ...prev, 
+                                  personTracking: { ...prev.personTracking, priority: priority.value as any }
+                                }))}
+                                className="text-xs h-8"
+                              >
+                                {priority.label}
+                              </Button>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div>
+                          <div className="flex items-center justify-between mb-2">
+                            <Label className="text-xs text-blue-800">Smoothing</Label>
+                            <span className="text-xs text-blue-600">{reframingOptions.personTracking.smoothing}%</span>
+                          </div>
+                          <Slider
+                            value={[reframingOptions.personTracking.smoothing]}
+                            onValueChange={(value) => setReframingOptions(prev => ({ 
+                              ...prev, 
+                              personTracking: { ...prev.personTracking, smoothing: value[0] }
+                            }))}
+                            max={100}
+                            step={10}
+                            className="w-full"
+                          />
+                        </div>
+
+                        <div>
+                          <div className="flex items-center justify-between mb-2">
+                            <Label className="text-xs text-blue-800">Zoom Level</Label>
+                            <span className="text-xs text-blue-600">{reframingOptions.personTracking.zoomLevel}x</span>
+                          </div>
+                          <Slider
+                            value={[reframingOptions.personTracking.zoomLevel]}
+                            onValueChange={(value) => setReframingOptions(prev => ({ 
+                              ...prev, 
+                              personTracking: { ...prev.personTracking, zoomLevel: value[0] }
+                            }))}
+                            min={0.5}
+                            max={2.0}
+                            step={0.1}
+                            className="w-full"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Quality Selection */}
+                    <div>
+                      <Label className="text-sm font-medium text-gray-700 mb-2 block">Quality</Label>
+                      <div className="flex space-x-1">
+                        {['low', 'medium', 'high'].map((quality) => (
+                          <Button
+                            key={quality}
+                            size="sm"
+                            variant={reframingOptions.quality === quality ? 'default' : 'outline'}
+                            onClick={() => setReframingOptions(prev => ({ ...prev, quality: quality as any }))}
+                            className="text-xs capitalize flex-1"
+                          >
+                            {quality}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Analysis Section */}
+                    <div className="border rounded-lg p-3 bg-gray-50">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium text-gray-700">Video Analysis</span>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={handleAnalyzeVideo}
+                          disabled={isAnalyzing}
+                        >
+                          {isAnalyzing ? (
+                            <>
+                              <Eye className="w-3 h-3 mr-1 animate-pulse" />
+                              Analyzing...
+                            </>
+                          ) : (
+                            <>
+                              <Eye className="w-3 h-3 mr-1" />
+                              Analyze
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                      
+                      {reframingAnalysis && (
+                        <div className="text-xs text-gray-600 space-y-1">
+                          <p>Confidence: {Math.round(reframingAnalysis.recommendations.confidence * 100)}%</p>
+                          <p>People detected: {reframingAnalysis.recommendations.hasSubjects ? 'Yes' : 'No'}</p>
+                          <p>Optimal ratio: {reframingAnalysis.recommendations.optimalAspectRatio}</p>
+                          {reframingAnalysis.analysis && (
+                            <p>Frames analyzed: {reframingAnalysis.analysis.length}</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Zoom-Out Focus Guarantee */}
+                    <div className="border rounded-lg p-3 bg-green-50 mb-3">
+                      <h4 className="font-medium text-green-800 mb-2">🎯 Zoom-Out Focus Guarantee</h4>
+                      <p className="text-xs text-green-700 mb-3">Guarantees ALL subjects stay in frame by zooming out if needed</p>
+                      
+                      <div className="space-y-3">
+                        <div>
+                          <Label className="text-xs text-green-700 mb-1 block">Focus Guarantee</Label>
+                          <Select
+                            value={zoomOutOptions.focusGuarantee}
+                            onValueChange={(value: any) => setZoomOutOptions(prev => ({ ...prev, focusGuarantee: value }))}
+                          >
+                            <SelectTrigger className="h-8 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="strict">🔒 Strict (Never lose subjects)</SelectItem>
+                              <SelectItem value="balanced">⚖️ Balanced</SelectItem>
+                              <SelectItem value="flexible">🎨 Flexible</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div>
+                          <Label className="text-xs text-green-700 mb-1 block">Max Zoom Out: {zoomOutOptions.maxZoomOut}x</Label>
+                          <Slider
+                            value={[zoomOutOptions.maxZoomOut]}
+                            onValueChange={(value) => setZoomOutOptions(prev => ({ ...prev, maxZoomOut: value[0] }))}
+                            max={3}
+                            min={1}
+                            step={0.1}
+                            className="w-full"
+                          />
+                        </div>
+
+                        <div>
+                          <Label className="text-xs text-green-700 mb-1 block">Subject Padding: {zoomOutOptions.subjectPadding}%</Label>
+                          <Slider
+                            value={[zoomOutOptions.subjectPadding]}
+                            onValueChange={(value) => setZoomOutOptions(prev => ({ ...prev, subjectPadding: value[0] }))}
+                            max={25}
+                            min={0}
+                            step={1}
+                            className="w-full"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Focus Preservation Options */}
+                    <div className="border rounded-lg p-3 bg-purple-50">
+                      <h4 className="font-medium text-purple-800 mb-2">Advanced Focus Preservation</h4>
+                      
+                      <div className="space-y-3">
+                        <div>
+                          <Label className="text-xs text-purple-700 mb-1 block">Preservation Mode</Label>
+                          <Select
+                            value={focusPreservationOptions.preservationMode}
+                            onValueChange={(value: any) => setFocusPreservationOptions(prev => ({ ...prev, preservationMode: value }))}
+                          >
+                            <SelectTrigger className="h-8 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="intelligent-tracking">🎯 Intelligent Tracking</SelectItem>
+                              <SelectItem value="subject-priority">👤 Subject Priority</SelectItem>
+                              <SelectItem value="motion-aware">🎬 Motion Aware</SelectItem>
+                              <SelectItem value="content-adaptive">🧠 Content Adaptive</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div>
+                          <Label className="text-xs text-purple-700 mb-1 block">Smoothing: {focusPreservationOptions.smoothingLevel}</Label>
+                          <Slider
+                            value={[focusPreservationOptions.smoothingLevel]}
+                            onValueChange={(value) => setFocusPreservationOptions(prev => ({ ...prev, smoothingLevel: value[0] }))}
+                            max={10}
+                            min={0}
+                            step={1}
+                            className="w-full"
+                          />
+                        </div>
+
+                        <div>
+                          <Label className="text-xs text-purple-700 mb-1 block">Zoom Tolerance: {focusPreservationOptions.zoomTolerance}x</Label>
+                          <Slider
+                            value={[focusPreservationOptions.zoomTolerance]}
+                            onValueChange={(value) => setFocusPreservationOptions(prev => ({ ...prev, zoomTolerance: value[0] }))}
+                            max={2}
+                            min={1}
+                            step={0.1}
+                            className="w-full"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="space-y-2">
+                      <Button
+                        className="w-full bg-green-600 hover:bg-green-700 text-white font-medium"
+                        onClick={handleZoomOutFocusConvert}
+                        disabled={isReframing || !selectedVideo}
+                      >
+                        {isReframing ? (
+                          <>
+                            <Target className="w-4 h-4 mr-2 animate-pulse" />
+                            Guaranteeing Focus... {reframingProgress}%
+                          </>
+                        ) : (
+                          <>
+                            <Target className="w-4 h-4 mr-2" />
+                            🎯 Zoom-Out Focus Guarantee
+                          </>
+                        )}
+                      </Button>
+
+                      <Button
+                        className="w-full bg-purple-600 hover:bg-purple-700 text-white"
+                        onClick={handleFocusPreservingConvert}
+                        disabled={isReframing || !selectedVideo}
+                      >
+                        {isReframing ? (
+                          <>
+                            <Target className="w-4 h-4 mr-2 animate-pulse" />
+                            Advanced Focus... {reframingProgress}%
+                          </>
+                        ) : (
+                          <>
+                            <Target className="w-4 h-4 mr-2" />
+                            Advanced Focus Preservation
+                          </>
+                        )}
+                      </Button>
+
+                      <Button
+                        className="w-full"
+                        onClick={handleSmartReframe}
+                        disabled={isReframing || !selectedVideo || reframeMutation.isPending}
+                      >
+                        {isReframing || reframeMutation.isPending ? (
+                          <>
+                            <Zap className="w-4 h-4 mr-2 animate-pulse" />
+                            Smart Reframe... {reframingProgress}%
+                          </>
+                        ) : (
+                          <>
+                            <Zap className="w-4 h-4 mr-2" />
+                            Smart Reframe
+                          </>
+                        )}
+                      </Button>
+                    </div>
+
+                    {isReframing && (
+                      <div className="space-y-2">
+                        <div className="bg-blue-100 rounded-full h-2">
+                          <div 
+                            className="bg-blue-500 h-2 rounded-full transition-all duration-500"
+                            style={{ width: `${reframingProgress}%` }}
+                          />
+                        </div>
+                        <p className="text-xs text-gray-600 text-center">
+                          {reframingProgress < 30 ? 'Analyzing video frames...' :
+                           reframingProgress < 70 ? 'Detecting subjects...' :
+                           reframingProgress < 90 ? 'Applying smart crop...' :
+                           'Finalizing video...'}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Center Panel - Video Preview */}
+        <div className="flex-1 flex flex-col bg-white">
+          <Tabs defaultValue="preview" className="flex-1 flex flex-col">
+            <TabsList className="w-full justify-start bg-gray-50 rounded-none border-b border-gray-200">
+              <TabsTrigger value="preview" className="data-[state=active]:bg-white">Preview</TabsTrigger>
+              <TabsTrigger value="ai-shorts" className="data-[state=active]:bg-white">
+                <Sparkles className="w-4 h-4 mr-1" />
+                AI Shorts
+              </TabsTrigger>
+              <TabsTrigger value="smart-crop" className="data-[state=active]:bg-white">
+                <Crop className="w-4 h-4 mr-1" />
+                Smart Crop
+              </TabsTrigger>
+              <TabsTrigger value="transitions" className="data-[state=active]:bg-white">Transitions</TabsTrigger>
+              <TabsTrigger value="settings" className="data-[state=active]:bg-white">Settings</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="preview" className="flex-1 flex flex-col m-0 p-0">
+              <div className="flex-1 flex flex-col">
+                {/* Upload Section */}
+                {!selectedVideo && (
+                  <div className="flex-1 flex items-center justify-center p-8">
+                    <div className="text-center">
+                      <div className="w-24 h-24 mx-auto mb-4 bg-gray-100 rounded-lg flex items-center justify-center">
+                        <Upload className="w-8 h-8 text-gray-400" />
+                      </div>
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">Upload a video to get started</h3>
+                      <p className="text-gray-500 mb-4">Drag and drop or click to upload</p>
+                      <Button onClick={() => document.getElementById('video-upload')?.click()}>
+                        Choose Video
+                      </Button>
+                      <input
+                        id="video-upload"
+                        type="file"
+                        accept="video/*"
+                        onChange={handleFileUpload}
+                        className="hidden"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Video Player */}
+                {selectedVideo && (
+                  <div className="p-4 border-b border-gray-200">
+                    <div className="relative bg-black rounded-lg overflow-hidden aspect-video">
+                      <video
+                        ref={videoRef}
+                        className="w-full h-full object-contain"
+                        controls
+                        src={processedVideoUrl || previewUrl || ''}
+                        onLoadedMetadata={handleVideoLoadedMetadata}
+                        onTimeUpdate={() => setCurrentTime(videoRef.current?.currentTime || 0)}
+                        onPlay={() => setIsPlaying(true)}
+                        onPause={() => setIsPlaying(false)}
+                      />
+                      <div className="absolute top-2 right-2 flex space-x-2">
+                        {processedVideoUrl && (
+                          <Button
+                            size="sm"
+                            className="bg-green-600 hover:bg-green-700 text-white"
+                            onClick={() => setShowExportOptions(true)}
+                          >
+                            <Download className="w-3 h-3 mr-1" />
+                            {exportMutation.isPending ? 'Exporting...' : 'Export Video'}
+                          </Button>
+                        )}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="bg-white/90 hover:bg-white"
+                          onClick={() => setShowReframingPanel(!showReframingPanel)}
+                        >
+                          <Crop className="w-3 h-3 mr-1" />
+                          Reframe
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Adobe-Style Timeline Section */}
+                {selectedVideo && (
+                  <div className="flex-1 flex flex-col bg-gray-900">
+                    {/* Timeline Header - Adobe Style */}
+                    <div className="bg-gray-800 text-white px-4 py-2 border-b border-gray-700 flex items-center justify-between">
+                      <div className="flex items-center space-x-6">
+                        <div className="flex items-center space-x-2">
+                          <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                          <span className="text-sm font-medium">Timeline</span>
+                        </div>
+                        <div className="text-xs text-gray-400 font-mono">
+                          {selectedVideo.originalName} • {formatTime(duration)} • {editOperations.length} clips
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-1">
+                        <Button size="sm" variant="ghost" className="h-6 px-2 text-xs text-gray-300 hover:text-white hover:bg-gray-700">
+                          <Undo className="w-3 h-3" />
+                        </Button>
+                        <Button size="sm" variant="ghost" className="h-6 px-2 text-xs text-gray-300 hover:text-white hover:bg-gray-700">
+                          Clear
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Timeline Workspace */}
+                    <div className="flex-1 flex bg-gray-900">
+                      {/* Track Headers */}
+                      <div className="w-40 bg-gray-800 border-r border-gray-700">
+                        {/* Video Track Header */}
+                        <div className="h-16 border-b border-gray-700 flex items-center px-3 bg-gradient-to-r from-blue-900/20 to-blue-800/20">
+                          <div className="flex items-center space-x-2">
+                            <div className="w-3 h-6 bg-blue-500 rounded-sm"></div>
+                            <div>
+                              <div className="text-xs font-semibold text-blue-300">V1</div>
+                              <div className="text-xs text-gray-400">Video</div>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {/* Audio Track Header */}
+                        <div className="h-12 border-b border-gray-700 flex items-center px-3 bg-gradient-to-r from-green-900/20 to-green-800/20">
+                          <div className="flex items-center space-x-2">
+                            <div className="w-3 h-4 bg-green-500 rounded-sm"></div>
+                            <div>
+                              <div className="text-xs font-semibold text-green-300">A1</div>
+                              <div className="text-xs text-gray-400">Audio</div>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {/* Text Track Header */}
+                        <div className="h-12 border-b border-gray-700 flex items-center px-3 bg-gradient-to-r from-purple-900/20 to-purple-800/20">
+                          <div className="flex items-center space-x-2">
+                            <div className="w-3 h-4 bg-purple-500 rounded-sm"></div>
+                            <div>
+                              <div className="text-xs font-semibold text-purple-300">T1</div>
+                              <div className="text-xs text-gray-400">Text</div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Timeline Canvas */}
+                      <div className="flex-1 relative overflow-hidden">
+                        {/* Time Ruler */}
+                        <div className="h-8 bg-gray-800 border-b border-gray-600 relative">
+                          {duration > 0 && (
+                            <div className="absolute inset-0 flex">
+                              {Array.from({ length: Math.ceil(duration / 5) + 1 }, (_, i) => (
+                                <div key={i} className="relative" style={{ width: `${500 / duration * 5}px`, minWidth: '40px' }}>
+                                  <div className="absolute left-0 top-0 bottom-0 w-px bg-gray-600"></div>
+                                  <div className="absolute left-1 top-1 text-xs text-gray-300 font-mono">
+                                    {formatTime(i * 5)}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          
+                          {/* Current Time Indicator */}
+                          {duration > 0 && (
+                            <div 
+                              className="absolute top-0 bottom-0 w-px bg-red-500 z-20 shadow-lg"
+                              style={{ left: `${(currentTime / duration) * 100}%` }}
+                            >
+                              <div className="absolute -top-1 -left-2 w-4 h-3 bg-red-500 rounded-t-sm"></div>
+                              <div className="absolute top-2 -left-8 text-xs text-red-400 font-mono">
+                                {formatTime(currentTime)}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Video Track */}
+                        <div className="h-16 bg-gray-900 border-b border-gray-700 relative">
+                          <div className="absolute inset-x-2 inset-y-2">
+                            <div className="h-full bg-gradient-to-r from-blue-600 to-blue-500 rounded-sm shadow-lg border border-blue-400/30 flex items-center justify-center relative overflow-hidden">
+                              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent"></div>
+                              <span className="text-xs font-medium text-white/90 relative z-10">
+                                {selectedVideo.originalName}
+                              </span>
+                              {/* Video Waveform Simulation */}
+                              <div className="absolute bottom-0 left-0 right-0 h-2 bg-blue-400/20 flex items-end space-x-px px-1">
+                                {Array.from({ length: 20 }, (_, i) => (
+                                  <div key={i} className="flex-1 bg-blue-300/40 rounded-t-sm" style={{ height: `${Math.random() * 100}%` }}></div>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Audio Track */}
+                        <div className="h-12 bg-gray-900 border-b border-gray-700 relative">
+                          {/* Audio Waveform */}
+                          <div className="absolute inset-x-2 inset-y-1">
+                            <div className="h-full bg-gradient-to-r from-green-600/80 to-green-500/80 rounded-sm flex items-center justify-center relative">
+                              <div className="absolute inset-0 flex items-center space-x-px px-1">
+                                {Array.from({ length: 50 }, (_, i) => (
+                                  <div key={i} className="flex-1 bg-green-300/60 rounded-sm" style={{ height: `${20 + Math.random() * 60}%` }}></div>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Text Track */}
+                        <div className="h-12 bg-gray-900 border-b border-gray-700 relative">
+                          {editOperations
+                            .filter(op => op.type === 'text_overlay')
+                            .map((op, index) => {
+                              const startPercent = duration > 0 ? (op.parameters?.startTime / duration) * 100 : 0;
+                              const durationPercent = duration > 0 ? ((op.parameters?.duration || 3) / duration) * 100 : 0;
+                              
+                              return (
+                                <div
+                                  key={op.id}
+                                  className="absolute top-1 bottom-1 bg-gradient-to-r from-purple-600 to-purple-500 rounded-sm border border-purple-400/30 cursor-pointer hover:from-purple-500 hover:to-purple-400 transition-all duration-200 shadow-lg"
+                                  style={{ 
+                                    left: `${startPercent}%`, 
+                                    width: `${Math.max(durationPercent, 5)}%`,
+                                    minWidth: '40px'
+                                  }}
+                                >
+                                  <div className="text-xs text-white px-2 py-1 truncate font-medium">
+                                    {op.parameters?.text || `Text ${index + 1}`}
+                                  </div>
+                                  {/* Resize Handles */}
+                                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-purple-300 opacity-0 hover:opacity-100 cursor-ew-resize"></div>
+                                  <div className="absolute right-0 top-0 bottom-0 w-1 bg-purple-300 opacity-0 hover:opacity-100 cursor-ew-resize"></div>
+                                </div>
+                              );
+                            })}
+                        </div>
+
+                        {/* Cut Segments Track */}
+                        <div className="h-12 bg-gray-900 border-b border-gray-700 relative">
+                          {editOperations
+                            .filter(op => op.type === 'cut_video_segment')
+                            .map((op, index) => {
+                              const startPercent = duration > 0 ? (op.parameters?.startTime / duration) * 100 : 0;
+                              const endPercent = duration > 0 ? (op.parameters?.endTime / duration) * 100 : 0;
+                              const width = endPercent - startPercent;
+                              
+                              return (
+                                <div
+                                  key={op.id}
+                                  className={`absolute top-1 bottom-1 bg-gradient-to-r from-orange-600 to-orange-500 rounded-sm border cursor-pointer transition-all duration-200 shadow-lg ${
+                                    selectedSegments.has(op.id) 
+                                      ? 'border-yellow-400 from-orange-500 to-orange-400 shadow-yellow-400/20' 
+                                      : 'border-orange-400/30 hover:from-orange-500 hover:to-orange-400'
+                                  }`}
+                                  style={{ 
+                                    left: `${startPercent}%`, 
+                                    width: `${Math.max(width, 2)}%`,
+                                    minWidth: '30px'
+                                  }}
+                                  onClick={() => handleSegmentClick(op.id)}
+                                >
+                                  <div className="text-xs text-white px-2 py-1 truncate font-medium">
+                                    Segment {index + 1}
+                                  </div>
+                                  {selectedSegments.has(op.id) && (
+                                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-yellow-400 rounded-full flex items-center justify-center">
+                                      <div className="w-1.5 h-1.5 bg-yellow-900 rounded-full"></div>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Transport Controls */}
+                    <div className="bg-gray-800 border-t border-gray-700 px-4 py-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-4">
+                          <div className="flex items-center space-x-1">
+                            <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-gray-300 hover:text-white hover:bg-gray-700">
+                              <SkipBack className="w-4 h-4" />
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="ghost" 
+                              onClick={handlePlayPause}
+                              className="h-8 w-8 p-0 text-gray-300 hover:text-white hover:bg-gray-700"
+                            >
+                              {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                            </Button>
+                            <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-gray-300 hover:text-white hover:bg-gray-700">
+                              <SkipForward className="w-4 h-4" />
+                            </Button>
+                          </div>
+                          
+                          <div className="text-sm font-mono text-gray-300">
+                            {formatTime(currentTime)} / {formatTime(duration)}
+                          </div>
+                          
+                          <div className="flex items-center space-x-2">
+                            <span className="text-xs text-gray-400">100%</span>
+                            <div className="w-20 h-1 bg-gray-700 rounded">
+                              <div className="w-full h-full bg-blue-500 rounded"></div>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center space-x-2">
+                          <Button size="sm" variant="ghost" className="h-8 px-3 text-xs text-gray-300 hover:text-white hover:bg-gray-700">
+                            <Scissors className="w-3 h-3 mr-1" />
+                            Razor
+                          </Button>
+                          <Button size="sm" variant="ghost" className="h-8 px-3 text-xs text-gray-300 hover:text-white hover:bg-gray-700">
+                            <Type className="w-3 h-3 mr-1" />
+                            Text
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </TabsContent>
+
+
+
+            <TabsContent value="ai-shorts" className="flex-1 m-0 p-4">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-medium flex items-center">
+                    <Sparkles className="w-5 h-5 mr-2 text-purple-600" />
+                    AI Shorts Generator
+                  </h3>
+                  {selectedVideo && (
+                    <Badge variant="secondary" className="bg-purple-100 text-purple-800">
+                      Video Ready
+                    </Badge>
+                  )}
+                </div>
+
+                {!selectedVideo ? (
+                  <div className="text-center py-12 text-gray-400">
+                    <Sparkles className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                    <p className="text-lg font-medium mb-2">Upload a video to generate AI shorts</p>
+                    <p className="text-sm">AI will analyze your video and create engaging short clips automatically</p>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {/* Video Preview - Same as Preview Tab */}
+                    <div className="relative bg-black rounded-lg overflow-hidden h-64">
+                      {selectedVideo && (
+                        <>
+                          <video
+                            className="w-full h-full object-contain"
+                            controls
+                            src={previewUrl || ''}
+                            onTimeUpdate={() => setCurrentTime(videoRef.current?.currentTime || 0)}
+                            onLoadedMetadata={() => setDuration(videoRef.current?.duration || 0)}
+                          />
+                          
+                          {/* Video Info Overlay */}
+                          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
+                            <div className="flex items-center justify-between text-white text-sm">
+                              <div className="flex items-center space-x-2">
+                                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                                <span>{selectedVideo.originalName}</span>
+                              </div>
+                              <div className="flex items-center space-x-4">
+                                <span>{(selectedVideo.size / 1024 / 1024).toFixed(1)} MB</span>
+                                <span>{formatTime(currentTime)} / {formatTime(duration)}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </div>
+
+                    {/* AutoFlip Configuration */}
+                    <div className="grid grid-cols-1 gap-4">
+                      <div>
+                        <Label className="text-sm font-medium mb-2 block">AutoFlip Detection Type</Label>
+                        <Select
+                          value={shortsOptions.focusMode}
+                          onValueChange={(value: any) => setShortsOptions(prev => ({ ...prev, focusMode: value }))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="face_core">🎯 Face Core - Essential facial landmarks</SelectItem>
+                            <SelectItem value="face_all">👤 Face All - Complete face detection</SelectItem>
+                            <SelectItem value="face_full">👥 Face Full - Advanced face tracking</SelectItem>
+                            <SelectItem value="human">🚶 Human - Person detection</SelectItem>
+                            <SelectItem value="pet">🐕 Pet - Animal detection</SelectItem>
+                            <SelectItem value="car">🚗 Car - Vehicle detection</SelectItem>
+                            <SelectItem value="object">📦 Object - General objects</SelectItem>
+                            <SelectItem value="auto">🤖 Auto - All detection types</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Choose what the AI should focus on when cropping your video
+                        </p>
+                      </div>
+
+                      <div>
+                        <Label className="text-sm font-medium mb-2 block">Custom Target (Optional)</Label>
+                        <input
+                          type="text"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                          placeholder="e.g. phone, laptop, microphone..."
+                          value={shortsOptions.customTarget || ''}
+                          onChange={(e) => setShortsOptions(prev => ({ ...prev, customTarget: e.target.value }))}
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Specify a custom object to detect and focus on
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label className="text-sm font-medium mb-2 block">Aspect Ratio</Label>
+                          <Select
+                            value={shortsOptions.aspectRatio}
+                            onValueChange={(value: any) => setShortsOptions(prev => ({ ...prev, aspectRatio: value }))}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="9:16">📱 9:16 (Vertical)</SelectItem>
+                              <SelectItem value="16:9">🖥️ 16:9 (Horizontal)</SelectItem>
+                              <SelectItem value="1:1">⬜ 1:1 (Square)</SelectItem>
+                              <SelectItem value="4:3">📺 4:3 (Classic)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div>
+                          <Label className="text-sm font-medium mb-2 block">Quality</Label>
+                          <Select
+                            value={shortsOptions.quality}
+                            onValueChange={(value: any) => setShortsOptions(prev => ({ ...prev, quality: value }))}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="high">🌟 High Quality</SelectItem>
+                              <SelectItem value="medium">⚡ Medium Quality</SelectItem>
+                              <SelectItem value="low">💨 Fast Processing</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* AutoFlip Generation Buttons */}
+                    <div className="grid grid-cols-1 gap-3">
+                      <Button
+                        onClick={() => generateShortsMutation.mutate()}
+                        disabled={generateShortsMutation.isPending || createUnifiedShortsMutation.isPending}
+                        className="w-full h-12 bg-purple-600 hover:bg-purple-700 text-white font-medium"
+                      >
+                        {generateShortsMutation.isPending ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Processing AutoFlip...
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="w-4 h-4 mr-2" />
+                            Generate AutoFlip Shorts
+                          </>
+                        )}
+                      </Button>
+
+                      <Button
+                        onClick={() => createUnifiedShortsMutation.mutate()}
+                        disabled={generateShortsMutation.isPending || createUnifiedShortsMutation.isPending}
+                        variant="outline"
+                        className="w-full h-12 border-purple-200 hover:bg-purple-50"
+                      >
+                        {createUnifiedShortsMutation.isPending ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Processing Enhanced...
+                          </>
+                        ) : (
+                          <>
+                            <Zap className="w-4 h-4 mr-2" />
+                            Create Enhanced AutoFlip Shorts
+                          </>
+                        )}
+                      </Button>
+                    </div>
+
+                    {/* Processing Progress */}
+                    {(generateShortsMutation.isPending || createUnifiedShortsMutation.isPending) && (
+                        
+                        {/* AutoFlip Detection Type Descriptions */}
+                        {shortsOptions.focusMode === 'face_core' && (
+                          <div className="mt-3 text-xs text-gray-500 bg-blue-50 p-3 rounded-lg">
+                            <strong>Face Core Landmarks:</strong> Focuses on core facial landmarks with high precision (score: 0.85-0.9). Best for close-up portraits and interviews.
+                          </div>
+                        )}
+                        
+                        {shortsOptions.focusMode === 'face_all' && (
+                          <div className="mt-3 text-xs text-gray-500 bg-purple-50 p-3 rounded-lg">
+                            <strong>All Face Features:</strong> Detects all facial landmarks and features (score: 0.8-0.85). Ideal for detailed facial analysis.
+                          </div>
+                        )}
+                        
+                        {shortsOptions.focusMode === 'face_full' && (
+                          <div className="mt-3 text-xs text-gray-500 bg-indigo-50 p-3 rounded-lg">
+                            <strong>Full Face Detection:</strong> Complete face detection including expressions (score: 0.8-0.85). Perfect for reaction videos.
+                          </div>
+                        )}
+                        
+                        {shortsOptions.focusMode === 'human' && (
+                          <div className="mt-3 text-xs text-gray-500 bg-green-50 p-3 rounded-lg">
+                            <strong>Human/Person:</strong> Detects full human bodies and poses (score: 0.75-0.8). Great for action and movement videos.
+                          </div>
+                        )}
+                        
+                        {shortsOptions.focusMode === 'pet' && (
+                          <div className="mt-3 text-xs text-gray-500 bg-orange-50 p-3 rounded-lg">
+                            <strong>Pet Detection:</strong> Specialized for animals and pets (score: 0.7-0.75). Perfect for animal content and pet videos.
+                          </div>
+                        )}
+                        
+                        {shortsOptions.focusMode === 'car' && (
+                          <div className="mt-3 text-xs text-gray-500 bg-red-50 p-3 rounded-lg">
+                            <strong>Car/Vehicle:</strong> Focuses on vehicles and transportation (score: 0.7-0.75). Ideal for automotive and travel content.
+                          </div>
+                        )}
+                        
+                        {shortsOptions.focusMode === 'object' && (
+                          <div className="mt-3 text-xs text-gray-500 bg-gray-50 p-3 rounded-lg">
+                            <strong>General Objects:</strong> Detects various objects and items (score: 0.1-0.2). Good for product demos and tutorials.
+                          </div>
+                        )}
+                        
+                        {shortsOptions.focusMode === 'auto' && (
+                          <div className="mt-3 text-xs text-gray-500 bg-gradient-to-r from-blue-50 to-purple-50 p-3 rounded-lg">
+                            <strong>Auto Detection:</strong> Uses all detection types with intelligent fusion. AutoFlip automatically prioritizes the most relevant subjects based on content.
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Custom Target Input for Object Detection */}
+                      {(shortsOptions.focusMode === 'object' || shortsOptions.focusMode === 'auto') && (
+                        <div>
+                          <Label className="text-sm font-medium mb-2 block">Custom Target (Optional)</Label>
+                          <input
+                            type="text"
+                            placeholder="e.g., laptop, guitar, book, phone..."
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                            value={shortsOptions.customTarget || ''}
+                            onChange={(e) => setShortsOptions(prev => ({ ...prev, customTarget: e.target.value }))}
+                          />
+                          <div className="mt-2 text-xs text-gray-500">
+                            Specify what AutoFlip should prioritize (e.g., "laptop" for tech demos, "guitar" for music videos)
+                          </div>
+                        </div>
+                      )}
+
+                      <div>
+                        <Label className="text-sm font-medium mb-2 block">Sample Rate</Label>
+                        <Select
+                          value={shortsOptions.sampleRate.toString()}
+                          onValueChange={(value) => setShortsOptions(prev => ({ ...prev, sampleRate: parseInt(value) as any }))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="15">15 FPS</SelectItem>
+                            <SelectItem value="30">30 FPS</SelectItem>
+                            <SelectItem value="60">60 FPS</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div>
+                        <Label className="text-sm font-medium mb-2 block">Quality</Label>
+                        <Select
+                          value={shortsOptions.quality}
+                          onValueChange={(value: any) => setShortsOptions(prev => ({ ...prev, quality: value }))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="standard">Standard Quality</SelectItem>
+                            <SelectItem value="high">High Quality</SelectItem>
+                            <SelectItem value="ultra">Ultra Quality</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    {/* Generate Buttons */}
+                    <div className="space-y-3">
+                      <Button
+                        onClick={() => {
+                          setShortsProgress(5);
+                          generateShortsMutation.mutate();
+                        }}
+                        disabled={generateShortsMutation.isPending}
+                        className="w-full bg-purple-600 hover:bg-purple-700 text-white h-12"
+                        size="lg"
+                      >
+                        {generateShortsMutation.isPending ? (
+                          <>
+                            <Zap className="w-5 h-5 mr-2 animate-spin" />
+                            Creating AutoFlip Shorts...
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="w-5 h-5 mr-2" />
+                            Generate AutoFlip Shorts
+                          </>
+                        )}
+                      </Button>
+
+                      <Button
+                        onClick={handleCreateUnifiedShorts}
+                        disabled={isCreatingUnifiedShorts}
+                        className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white h-12"
+                        size="lg"
+                      >
+                        {isCreatingUnifiedShorts ? (
+                          <>
+                            <Zap className="w-5 h-5 mr-2 animate-spin" />
+                            Creating Enhanced AutoFlip Shorts...
+                          </>
+                        ) : (
+                          <>
+                            <Target className="w-5 h-5 mr-2" />
+                            Create Enhanced AutoFlip Shorts
+                          </>
+                        )}
+                      </Button>
+                    </div>
+
+                    {/* Progress */}
+                    {generateShortsMutation.isPending && (
+                      <div className="space-y-3">
+                        <div className="flex justify-between text-sm">
+                          <span>Processing with AutoFlip...</span>
+                          <span>{shortsProgress.toFixed(0)}%</span>
+                        </div>
+                        <Progress value={shortsProgress} className="h-2" />
+                        <div className="text-xs text-gray-500 text-center">
+                          {shortsProgress < 10 ? 'Analyzing video properties...' :
+                           shortsProgress < 25 ? 'Running COCO-SSD object detection...' :
+                           shortsProgress < 45 ? 'Processing AutoFlip algorithm...' :
+                           shortsProgress < 65 ? 'Calculating optimal crop coordinates...' :
+                           shortsProgress < 85 ? 'Applying aspect ratio conversion...' :
+                           'Finalizing AutoFlip shorts...'}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Unified Shorts Progress */}
+                    {isCreatingUnifiedShorts && (
+                      <div className="space-y-3">
+                        <div className="flex justify-between text-sm">
+                          <span>Unified Shorts Creation...</span>
+                          <span>{unifiedShortsProgress.toFixed(0)}%</span>
+                        </div>
+                        <Progress value={unifiedShortsProgress} className="h-2 bg-gradient-to-r from-blue-100 to-purple-100" />
+                        <div className="text-xs text-blue-600 text-center">
+                          {unifiedShortsStep || (
+                            unifiedShortsProgress < 20 ? 'Audio-first clip identification...' :
+                            unifiedShortsProgress < 40 ? 'Motion composite analysis with Gemini AI...' :
+                            unifiedShortsProgress < 60 ? 'Generating animated SVG captions...' :
+                            unifiedShortsProgress < 80 ? 'Reframing video with intelligent cropping...' :
+                            'Compositing final video with SVG overlay...'
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Results */}
+                    {shortsResult && (
+                      <div className="space-y-4 border rounded-lg p-4 bg-green-50 border-green-200">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-lg font-medium text-green-800 flex items-center">
+                            <Target className="w-5 h-5 mr-2" />
+                            Intelligent AI Shorts Generated
+                          </h4>
+                          <Button
+                            onClick={() => {
+                              if (shortsResult?.videoUrl) {
+                                const a = document.createElement('a');
+                                a.href = shortsResult.videoUrl;
+                                a.download = `intelligent-shorts-${Date.now()}.mp4`;
+                                document.body.appendChild(a);
+                                a.click();
+                                document.body.removeChild(a);
+                              }
+                            }}
+                            className="bg-green-600 hover:bg-green-700 text-white"
+                          >
+                            <Download className="w-4 h-4 mr-2" />
+                            Download MP4
+                          </Button>
+                        </div>
+
+                    {/* Unified Shorts Results */}
+                    {unifiedShortsResult && (
+                      <div className="space-y-4 border rounded-lg p-4 bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-lg font-medium text-blue-800 flex items-center">
+                            <Sparkles className="w-5 h-5 mr-2" />
+                            Unified Shorts with SVG Captions Created
+                          </h4>
+                          <Button
+                            onClick={() => {
+                              if (unifiedShortsResult?.downloadUrl) {
+                                const a = document.createElement('a');
+                                a.href = unifiedShortsResult.downloadUrl;
+                                a.download = unifiedShortsResult.filename || `unified-shorts-${Date.now()}.mp4`;
+                                document.body.appendChild(a);
+                                a.click();
+                                document.body.removeChild(a);
+                              }
+                            }}
+                            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
+                          >
+                            <Download className="w-4 h-4 mr-2" />
+                            Download MP4
+                          </Button>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                          <div className="space-y-2">
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Clip Duration:</span>
+                              <span className="font-medium">{unifiedShortsResult.processingDetails?.clipDuration}s</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Frame Count:</span>
+                              <span className="font-medium">{unifiedShortsResult.processingDetails?.frameCount}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Processing Time:</span>
+                              <span className="font-medium">{Math.round((unifiedShortsResult.processingDetails?.processingTimeMs || 0) / 1000)}s</span>
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Caption Style:</span>
+                              <span className="font-medium capitalize">{unifiedShortsSettings.captionStyle}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">SVG Captions:</span>
+                              <span className="font-medium text-green-600">✓ Enabled</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Audio Analysis:</span>
+                              <span className="font-medium text-green-600">✓ Complete</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {unifiedShortsResult.metadata?.motionAnalysis && (
+                          <div className="mt-4 p-3 bg-white/50 rounded border">
+                            <h5 className="font-medium text-blue-700 mb-2">Motion Analysis & SVG Captions</h5>
+                            <div className="text-xs space-y-1">
+                              <div className="flex justify-between">
+                                <span>Caption Placement:</span>
+                                <span className="font-medium">{unifiedShortsResult.metadata.motionAnalysis.caption_plan?.placement_zone?.replace('_', ' ')}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span>Animation Style:</span>
+                                <span className="font-medium">{unifiedShortsResult.metadata.motionAnalysis.caption_plan?.animation_style?.replace('_', ' ')}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span>Keyframes Generated:</span>
+                                <span className="font-medium">{unifiedShortsResult.metadata.motionAnalysis.reframing_plan?.keyframes?.length || 0}</span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                        
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                          <div className="space-y-2">
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Title:</span>
+                              <span className="font-medium">{shortsResult.storyline?.title}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Time Intervals:</span>
+                              <span className="font-medium">{shortsResult.storyline?.selectedTimeIntervals?.length}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Duration:</span>
+                              <span className="font-medium flex items-center">
+                                <Clock className="w-3 h-3 mr-1" />
+                                {shortsResult.storyline?.totalDuration}s
+                              </span>
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Processing Time:</span>
+                              <span className="font-medium">{(shortsResult.processingTime / 1000).toFixed(1)}s</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Algorithm:</span>
+                              <span className="font-medium text-xs">AutoFlip</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Compression:</span>
+                              <span className="font-medium">{shortsResult.storyline?.compressionRatio}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Viral Potential:</span>
+                              <span className="font-medium">{Math.round((shortsResult.storyline?.viralPotential || 0) * 100)}%</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label className="text-sm font-medium text-gray-700">Story Concept</Label>
+                          <p className="text-sm text-gray-600 italic">{shortsResult.storyline?.concept}</p>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label className="text-sm font-medium text-gray-700">AI Generated Hashtags</Label>
+                          <div className="flex flex-wrap gap-1">
+                            {shortsResult.storyline?.hashtags?.map((tag: string, index: number) => (
+                              <Badge key={index} variant="secondary" className="bg-blue-100 text-blue-800 text-xs">
+                                {tag}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+
+                        <Collapsible>
+                          <CollapsibleTrigger asChild>
+                            <Button variant="outline" className="w-full">
+                              <ChevronDown className="w-4 h-4 mr-2" />
+                              View Intelligent Time Selection Details
+                            </Button>
+                          </CollapsibleTrigger>
+                          <CollapsibleContent className="space-y-3 pt-3">
+                            <div className="bg-gray-100 p-3 rounded text-xs max-h-32 overflow-y-auto">
+                              {shortsResult.storyline?.selectedTimeIntervals?.map((interval: any, index: number) => (
+                                <div key={index} className="text-gray-700 mb-2">
+                                  <strong>{index + 1}.</strong> {interval.originalStartTime}s-{interval.originalEndTime}s: {interval.selectionReason}
+                                </div>
+                              ))}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              <p>• Narrative coherence: {Math.round((shortsResult.storyline?.qualityMetrics?.narrativeCoherence || 0) * 100)}%</p>
+                              <p>• Emotional impact: {Math.round((shortsResult.storyline?.qualityMetrics?.emotionalImpact || 0) * 100)}%</p>
+                              <p>• Shareability: {Math.round((shortsResult.storyline?.qualityMetrics?.shareability || 0) * 100)}%</p>
+                            </div>
+                          </CollapsibleContent>
+                        </Collapsible>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="transitions" className="flex-1 m-0 p-4">
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium">Transition Effects</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  {['Fade', 'Slide', 'Zoom', 'Dissolve'].map((effect) => (
+                    <Button key={effect} variant="outline" className="h-12">
+                      {effect}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="settings" className="flex-1 m-0 p-4">
+              <div className="space-y-6">
+                <h3 className="text-lg font-medium">Export Settings</h3>
+                <div className="space-y-4">
+                  <div>
+                    <Label className="text-sm font-medium text-gray-700">Quality</Label>
+                    <div className="mt-2 space-y-2">
+                      {['720p', '1080p', '4K'].map((quality) => (
+                        <label key={quality} className="flex items-center space-x-2">
+                          <input type="radio" name="quality" value={quality} className="text-blue-600" />
+                          <span className="text-sm">{quality}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-gray-700">Format</Label>
+                    <div className="mt-2 space-y-2">
+                      {['MP4', 'MOV', 'AVI'].map((format) => (
+                        <label key={format} className="flex items-center space-x-2">
+                          <input type="radio" name="format" value={format} className="text-blue-600" />
+                          <span className="text-sm">{format}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </TabsContent>
+          </Tabs>
+        </div>
+
+        {/* Right Panel - AI Assistant */}
+        <div className="w-80 bg-white border-l border-gray-200 flex flex-col">
+          {/* AI Assistant Header */}
+          <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-purple-50">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center space-x-2">
+                <div className={`w-3 h-3 rounded-full ${isAgentWarmedUp ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`}></div>
+                <h3 className="font-medium text-gray-900">AI Video Editor</h3>
+              </div>
+              <div className="flex items-center space-x-2">
+                {selectedVideo && !isAgentWarmedUp && (
+                  <Button
+                    size="sm"
+                    onClick={handleAgentWarmup}
+                    disabled={isWarmingUp || agentWarmupMutation.isPending}
+                    className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-2 py-1 h-6"
+                  >
+                    {isWarmingUp || agentWarmupMutation.isPending ? 'Warming...' : 'Warm Up'}
+                  </Button>
+                )}
+                {isAgentWarmedUp && (
+                  <Badge variant="default" className="text-xs bg-green-100 text-green-800">
+                    LangChain Ready
+                  </Badge>
+                )}
+                <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-800">
+                  {editOperations.length} edits
+                </Badge>
+              </div>
+            </div>
+            <p className="text-xs text-gray-600">
+              {isAgentWarmedUp 
+                ? 'Agent ready with video analysis! Try: "take video to 30 seconds" or "analyze this content"'
+                : 'Upload a video and warm up the agent for advanced video analysis and navigation commands.'
+              }
+            </p>
+          </div>
+
+          {/* Chat Messages */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
+            {chatMessages.length === 0 ? (
+              <div className="text-center py-8">
+                <div className="bg-white rounded-lg p-6 shadow-sm border">
+                  <Sparkles className="w-8 h-8 mx-auto mb-3 text-purple-400" />
+                  <p className="text-sm font-medium text-gray-700 mb-2">AI Editor Ready</p>
+                  <p className="text-xs text-gray-500 mb-4">Try these commands:</p>
+                  <div className="space-y-2 text-left">
+                    <div className="bg-blue-50 px-3 py-2 rounded text-xs">
+                      <span className="font-mono text-blue-700">"cut from 10s to 30s"</span>
+                    </div>
+                    <div className="bg-green-50 px-3 py-2 rounded text-xs">
+                      <span className="font-mono text-green-700">"add text 'Hello' at 5s"</span>
+                    </div>
+                    <div className="bg-purple-50 px-3 py-2 rounded text-xs">
+                      <span className="font-mono text-purple-700">"highlight this moment"</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              chatMessages.map((message) => (
+                <div
+                  key={message.id}
+                  className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
+                >
+                  <div
+                    className={`max-w-xs px-4 py-3 rounded-lg text-sm shadow-sm ${
+                      message.type === 'user'
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-white text-gray-900 border'
+                    }`}
+                  >
+                    <p className="leading-relaxed">{message.content}</p>
+                    {message.operations && message.operations.length > 0 && (
+                      <div className="mt-2 pt-2 border-t border-gray-200">
+                        <p className="text-xs font-medium text-gray-600 mb-1">Applied edits:</p>
+                        {message.operations.map((op, idx) => (
+                          <div key={idx} className="text-xs bg-gray-50 px-2 py-1 rounded mb-1">
+                            {op.description}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <p className="text-xs opacity-75 mt-2">
+                      {new Date(message.timestamp).toLocaleTimeString()}
+                    </p>
+                  </div>
+                </div>
+              ))
+            )}
+            {(agenticChatMutation.isPending || langchainChatMutation.isPending) && (
+              <div className="flex justify-start">
+                <div className="bg-white text-gray-900 max-w-xs px-4 py-3 rounded-lg text-sm shadow-sm border">
+                  <div className="flex items-center space-x-2">
+                    <div className="flex space-x-1">
+                      <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></div>
+                      <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
+                      <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                    </div>
+                    <span>AI analyzing...</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Chat Input */}
+          <form onSubmit={handleChatSubmit} className="p-4 border-t border-gray-200 bg-white">
+            <div className="space-y-3">
+              <div className="flex space-x-3">
+                <div className="flex-1 relative">
+                  <Input
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    placeholder={
+                      isAgentWarmedUp 
+                        ? "Try: 'take video to 30 seconds' or 'analyze this scene'"
+                        : selectedVideo ? "Type editing command..." : "Upload a video first..."
+                    }
+                    disabled={!selectedVideo || langchainChatMutation.isPending || agenticChatMutation.isPending}
+                    className="pr-20 bg-gray-50 border-gray-200 focus:bg-white transition-colors"
+                  />
+                  {selectedVideo && (
+                    <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                      <div className="flex items-center space-x-1 text-xs text-gray-400">
+                        <Clock className="w-3 h-3" />
+                        <span>{formatTime(currentTime)}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <Button
+                  type="submit"
+                  size="sm"
+                  disabled={!selectedVideo || !chatInput.trim() || agenticChatMutation.isPending}
+                  className="bg-blue-500 hover:bg-blue-600 text-white px-4"
+                >
+                  {agenticChatMutation.isPending ? (
+                    <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <Type className="w-4 h-4" />
+                  )}
+                </Button>
+              </div>
+              
+              {/* Quick Command Buttons */}
+              <div className="flex flex-wrap gap-1">
+                {selectedVideo && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setChatInput(isAgentWarmedUp ? "take video to 30 seconds" : "cut from 10s to 30s")}
+                      className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
+                    >
+                      {isAgentWarmedUp ? "Navigate to 30s" : "Cut segment"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setChatInput(isAgentWarmedUp ? "analyze the content at this time" : "add text 'Title' at 5s")}
+                      className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200 transition-colors"
+                    >
+                      {isAgentWarmedUp ? "Analyze content" : "Add text"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setChatInput(isAgentWarmedUp ? "play the video" : "highlight this moment")}
+                      className="px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded hover:bg-purple-200 transition-colors"
+                    >
+                      {isAgentWarmedUp ? "Play video" : "Highlight"}
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <SplitDialog 
+        showSplitDialog={showSplitDialog}
+        setShowSplitDialog={setShowSplitDialog}
+        selectedVideo={selectedVideo}
+        previewUrl={previewUrl}
+        duration={duration}
+        currentTime={currentTime}
+        formatTime={formatTime}
+        splitStartTime={splitStartTime}
+        setSplitStartTime={setSplitStartTime}
+        splitEndTime={splitEndTime}
+        setSplitEndTime={setSplitEndTime}
+        videoRef={videoRef}
+      />
+    </div>
+  );
+}
+
+// Split Dialog Component
+function SplitDialog({ 
+  showSplitDialog, 
+  setShowSplitDialog, 
+  selectedVideo, 
+  previewUrl, 
+  duration, 
+  currentTime, 
+  formatTime,
+  splitStartTime,
+  setSplitStartTime,
+  splitEndTime,
+  setSplitEndTime,
+  videoRef
+}: any) {
+  return (
+    <Dialog open={showSplitDialog} onOpenChange={setShowSplitDialog}>
+      <DialogContent className="sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Split Video Segment</DialogTitle>
+          <DialogDescription>
+            Select the start and end times for your video segment
+          </DialogDescription>
+        </DialogHeader>
+        
+        <div className="space-y-6">
+          {/* Video Preview */}
+          <div className="relative bg-black rounded-lg overflow-hidden h-64">
+            {selectedVideo && (
+              <video
+                ref={videoRef}
+                className="w-full h-full object-contain"
+                controls
+                src={previewUrl || ''}
+              />
+            )}
+          </div>
+
+          {/* Time Controls */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-sm font-medium text-gray-700 block mb-2">Start Time</label>
+              <div className="flex items-center space-x-2">
+                <Input
+                  type="number"
+                  min="0"
+                  max={duration}
+                  step="0.1"
+                  value={splitStartTime}
+                  onChange={(e) => setSplitStartTime(Number(e.target.value))}
+                  className="flex-1"
+                />
+                <span className="text-sm text-gray-500">seconds</span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setSplitStartTime(currentTime)}
+                >
+                  Current
+                </Button>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">{formatTime(splitStartTime)}</p>
+            </div>
+            
+            <div>
+              <label className="text-sm font-medium text-gray-700 block mb-2">End Time</label>
+              <div className="flex items-center space-x-2">
+                <Input
+                  type="number"
+                  min="0"
+                  max={duration}
+                  step="0.1"
+                  value={splitEndTime}
+                  onChange={(e) => setSplitEndTime(Number(e.target.value))}
+                  className="flex-1"
+                />
+                <span className="text-sm text-gray-500">seconds</span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setSplitEndTime(currentTime)}
+                >
+                  Current
+                </Button>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">{formatTime(splitEndTime)}</p>
+            </div>
+          </div>
+
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <h4 className="font-medium text-gray-900 mb-2">Segment Preview</h4>
+            <p className="text-sm text-gray-600">
+              Duration: {formatTime(Math.max(0, splitEndTime - splitStartTime))}
+            </p>
+            <div className="mt-2 bg-blue-100 rounded-full h-2 relative">
+              <div 
+                className="bg-blue-500 h-2 rounded-full"
+                style={{ 
+                  width: `${Math.min(100, Math.max(0, (splitEndTime - splitStartTime) / duration * 100))}%` 
+                }}
+              />
+            </div>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setShowSplitDialog(false)}>
+            Cancel
+          </Button>
+          <Button 
+            onClick={() => {
+              // Handle split action here
+              setShowSplitDialog(false);
+            }}
+            disabled={splitEndTime <= splitStartTime}
+          >
+            <Download className="w-4 h-4 mr-1" />
+            Start Export
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
